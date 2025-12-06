@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCircle,
+  Bot,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -36,6 +37,7 @@ export function Sidebar({
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+    { icon: Bot, label: 'Assistente IA', href: '/whatsapp-panel' },
     { icon: Users, label: 'Profissionais', href: '/professionals' },
     { icon: BookOpen, label: 'Catálogo', href: '/trainings' },
     { icon: Calendar, label: 'Agenda e Turmas', href: '/schedule' },

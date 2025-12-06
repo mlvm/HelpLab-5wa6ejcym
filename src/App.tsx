@@ -15,6 +15,7 @@ import Settings from './pages/Settings'
 import Audit from './pages/Audit'
 import Communications from './pages/Communications'
 import ProfessionalHistory from './pages/ProfessionalHistory'
+import WhatsappPanel from './pages/WhatsappPanel'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -29,6 +30,7 @@ const App = () => (
 
         <Route element={<Layout />}>
           <Route path="/" element={<Index />} />
+          <Route path="/whatsapp-panel" element={<WhatsappPanel />} />
           <Route path="/professionals" element={<Professionals />} />
           <Route path="/trainings" element={<Trainings />} />
           <Route path="/schedule" element={<Schedule />} />
