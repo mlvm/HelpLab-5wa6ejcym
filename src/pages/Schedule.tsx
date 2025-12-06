@@ -1,0 +1,194 @@
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+} from 'lucide-react'
+import { Link } from 'react-router-dom'
+
+const classes = [
+  {
+    id: 101,
+    title: 'Biossegurança - Turma A',
+    date: '2024-10-15',
+    time: '08:00 - 12:00',
+    status: 'Lotada',
+    instructor: 'Dr. Silva',
+  },
+  {
+    id: 102,
+    title: 'Primeiros Socorros',
+    date: '2024-10-16',
+    time: '14:00 - 18:00',
+    status: 'Aberta',
+    instructor: 'Enf. Maria',
+  },
+  {
+    id: 103,
+    title: 'Biossegurança - Turma B',
+    date: '2024-10-18',
+    time: '08:00 - 12:00',
+    status: 'Planejada',
+    instructor: 'Dr. Silva',
+  },
+  {
+    id: 104,
+    title: 'Gestão Laboratorial',
+    date: '2024-10-22',
+    time: '09:00 - 17:00',
+    status: 'Aberta',
+    instructor: 'Adm. Roberto',
+  },
+  {
+    id: 105,
+    title: 'Coleta de Amostras',
+    date: '2024-10-25',
+    time: '08:00 - 12:00',
+    status: 'Cancelada',
+    instructor: 'Bio. Carla',
+  },
+]
+
+export default function Schedule() {
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Agenda e Turmas</h1>
+          <p className="text-muted-foreground">
+            Visualize e gerencie as turmas agendadas.
+          </p>
+        </div>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" /> Criar Nova Turma
+        </Button>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-12">
+        <Card className="md:col-span-8 lg:col-span-9">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle>Outubro 2024</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Simplified Calendar List View for Mockup */}
+            <div className="space-y-4 mt-4">
+              {classes.map((cls) => (
+                <Link
+                  to={`/class/${cls.id}`}
+                  key={cls.id}
+                  className="block group"
+                >
+                  <div className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-accent/10 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="flex flex-col items-center justify-center bg-muted p-2 rounded w-16 text-center">
+                        <span className="text-xs font-semibold uppercase text-muted-foreground">
+                          Out
+                        </span>
+                        <span className="text-xl font-bold">
+                          {cls.date.split('-')[2]}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                          {cls.title}
+                        </h3>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="h-3 w-3" /> {cls.time}
+                          </span>
+                          <span>• Instrutor: {cls.instructor}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <Badge
+                        variant={
+                          cls.status === 'Lotada'
+                            ? 'destructive'
+                            : cls.status === 'Aberta'
+                              ? 'default'
+                              : cls.status === 'Planejada'
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                      >
+                        {cls.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-4 lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base">Filtros</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant="outline"
+                  className="cursor-pointer hover:bg-secondary"
+                >
+                  Abertas
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="cursor-pointer hover:bg-secondary"
+                >
+                  Lotadas
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="cursor-pointer hover:bg-secondary"
+                >
+                  Planejadas
+                </Badge>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Instrutor</label>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="inst1"
+                    className="rounded border-gray-300"
+                  />
+                  <label htmlFor="inst1" className="text-sm">
+                    Dr. Silva
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="inst2"
+                    className="rounded border-gray-300"
+                  />
+                  <label htmlFor="inst2" className="text-sm">
+                    Enf. Maria
+                  </label>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
