@@ -21,6 +21,7 @@ import {
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { DatePicker } from '@/components/ui/date-picker'
 import { DateRange } from 'react-day-picker'
+import { useClassStatus } from '@/contexts/ClassStatusContext'
 
 const initialAppointments = [
   {
@@ -30,6 +31,7 @@ const initialAppointments = [
     date: '15/10/2024',
     channel: 'WhatsApp',
     status: 'Confirmado',
+    classStatus: 'Lotada',
   },
   {
     id: 2,
@@ -38,6 +40,7 @@ const initialAppointments = [
     date: '15/10/2024',
     channel: 'WhatsApp',
     status: 'Confirmado',
+    classStatus: 'Lotada',
   },
   {
     id: 3,
@@ -46,6 +49,7 @@ const initialAppointments = [
     date: '16/10/2024',
     channel: 'WhatsApp',
     status: 'Cancelado',
+    classStatus: 'Aberta',
   },
   {
     id: 4,
@@ -54,6 +58,7 @@ const initialAppointments = [
     date: '15/10/2024',
     channel: 'WhatsApp',
     status: 'Faltou',
+    classStatus: 'Lotada',
   },
 ]
 
@@ -61,9 +66,15 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState(initialAppointments)
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined)
+  const [classStatusFilter, setClassStatusFilter] = useState('all')
+  const { statuses, getStatusColor } = useClassStatus()
 
-  // Filter logic would go here, using the selected dates
-  // For now, we just display the controls as per requirements
+  // Filter logic (mock implementation for demonstration)
+  const filteredAppointments = appointments.filter((apt) => {
+    if (classStatusFilter !== 'all' && apt.classStatus !== classStatusFilter)
+      return false
+    return true
+  })
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -106,15 +117,20 @@ export default function Appointments() {
                   <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 </SelectContent>
               </Select>
-              <Select defaultValue="all">
+              <Select
+                value={classStatusFilter}
+                onValueChange={setClassStatusFilter}
+              >
                 <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder="Status Turma" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos Status</SelectItem>
-                  <SelectItem value="confirmed">Confirmado</SelectItem>
-                  <SelectItem value="canceled">Cancelado</SelectItem>
-                  <SelectItem value="noshow">Faltou</SelectItem>
+                  {statuses.map((status) => (
+                    <SelectItem key={status.id} value={status.name}>
+                      {status.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -128,11 +144,12 @@ export default function Appointments() {
                 <TableHead>Treinamento</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Canal</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Status Agendamento</TableHead>
+                <TableHead>Status Turma</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {appointments.map((apt) => (
+              {filteredAppointments.map((apt) => (
                 <TableRow key={apt.id}>
                   <TableCell className="font-medium">{apt.prof}</TableCell>
                   <TableCell>{apt.training}</TableCell>
@@ -158,6 +175,17 @@ export default function Appointments() {
                       }
                     >
                       {apt.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className="border-transparent text-white"
+                      style={{
+                        backgroundColor: getStatusColor(apt.classStatus),
+                      }}
+                    >
+                      {apt.classStatus}
                     </Badge>
                   </TableCell>
                 </TableRow>

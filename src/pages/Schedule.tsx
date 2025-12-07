@@ -20,8 +20,9 @@ import { DateRange } from 'react-day-picker'
 import { isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { useClassStatus } from '@/contexts/ClassStatusContext'
+import { ClassItem } from '@/types/class-types'
 
-const initialClasses = [
+const initialClasses: ClassItem[] = [
   {
     id: 101,
     title: 'Biossegurança - Turma A',
@@ -29,6 +30,8 @@ const initialClasses = [
     time: '08:00 - 12:00',
     status: 'Lotada',
     instructor: 'Dr. Silva',
+    maxParticipants: 30,
+    enrolled: 30,
   },
   {
     id: 102,
@@ -37,6 +40,8 @@ const initialClasses = [
     time: '14:00 - 18:00',
     status: 'Aberta',
     instructor: 'Enf. Maria',
+    maxParticipants: 20,
+    enrolled: 12,
   },
   {
     id: 103,
@@ -45,6 +50,8 @@ const initialClasses = [
     time: '08:00 - 12:00',
     status: 'Planejada',
     instructor: 'Dr. Silva',
+    maxParticipants: 30,
+    enrolled: 5,
   },
   {
     id: 104,
@@ -53,6 +60,8 @@ const initialClasses = [
     time: '09:00 - 17:00',
     status: 'Aberta',
     instructor: 'Adm. Roberto',
+    maxParticipants: 25,
+    enrolled: 10,
   },
   {
     id: 105,
@@ -61,11 +70,13 @@ const initialClasses = [
     time: '08:00 - 12:00',
     status: 'Cancelada',
     instructor: 'Bio. Carla',
+    maxParticipants: 30,
+    enrolled: 0,
   },
 ]
 
 export default function Schedule() {
-  const [classes, setClasses] = useState(initialClasses)
+  const [classes, setClasses] = useState<ClassItem[]>(initialClasses)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -73,13 +84,15 @@ export default function Schedule() {
   const { statuses, getStatusColor } = useClassStatus()
 
   const handleCreateClass = (data: ClassFormValues) => {
-    const newClass = {
+    const newClass: ClassItem = {
       id: Math.floor(Math.random() * 1000) + 200,
       title: `Nova Turma (${data.trainingId})`,
       date: data.date.toISOString().split('T')[0],
       time: `${data.startTime} - ${data.endTime}`,
       status: data.status,
       instructor: `Instrutor ${data.instructorId}`,
+      maxParticipants: data.maxParticipants,
+      enrolled: 0,
     }
     setClasses([...classes, newClass])
     toast.success('Nova turma criada com sucesso!')

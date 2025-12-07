@@ -37,21 +37,21 @@ const initialStudents: Student[] = [
     name: 'Ana Clara Souza',
     cpf: '123.***.***-00',
     status: 'Confirmado',
-    present: false,
+    attendance: 'Pendente',
   },
   {
     id: 2,
     name: 'Carlos Eduardo',
     cpf: '987.***.***-11',
     status: 'Confirmado',
-    present: false,
+    attendance: 'Pendente',
   },
   {
     id: 3,
     name: 'João Paulo',
     cpf: '456.***.***-22',
     status: 'Pendente',
-    present: false,
+    attendance: 'Pendente',
   },
 ]
 
@@ -60,30 +60,43 @@ export default function ClassDetails() {
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
   const [students, setStudents] = useState<Student[]>(initialStudents)
   const [classStatus, setClassStatus] = useState<string>('Lotada')
+  const [maxParticipants] = useState<number>(30) // Mocked capacity
   const { getStatusColor, statuses } = useClassStatus()
 
   const handleAttendanceSave = (updatedStudents: Student[]) => {
     setStudents(updatedStudents)
   }
 
-  const allConfirmedPresent = students
-    .filter((s) => s.status === 'Confirmado')
-    .every((s) => s.present)
+  // Check if all students have their attendance marked (either Present or Absent)
+  // Ignoring 'Pendente' status for 'attendance' field check
+  const allAttendanceRegistered = students.every(
+    (s) => s.attendance !== 'Pendente',
+  )
 
-  const isCompleted =
-    classStatus === 'Concluída' ||
-    classStatus === statuses.find((s) => s.id === 'completed')?.name
+  // Find "Concluída" status ID or fallback
+  const completedStatusObj =
+    statuses.find((s) => s.id === 'completed') ||
+    statuses.find((s) => s.name === 'Concluída')
+  const completedStatusName = completedStatusObj?.name || 'Concluída'
+
+  const isCompleted = classStatus === completedStatusName
 
   const handleCompleteClass = () => {
-    const completedStatus = statuses.find((s) => s.id === 'completed')
-    if (completedStatus) {
-      setClassStatus(completedStatus.name)
-      toast.success(`Turma marcada como ${completedStatus.name} com sucesso!`)
+    if (completedStatusObj) {
+      setClassStatus(completedStatusObj.name)
+      toast.success(
+        `Turma marcada como ${completedStatusObj.name} com sucesso!`,
+      )
     } else {
       setClassStatus('Concluída')
       toast.success('Turma marcada como Concluída com sucesso!')
     }
   }
+
+  const enrolledCount = students.length
+  const occupancyPercentage = Math.round(
+    (enrolledCount / maxParticipants) * 100,
+  )
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -124,7 +137,7 @@ export default function ClassDetails() {
           </Button>
           <Button
             onClick={handleCompleteClass}
-            disabled={!allConfirmedPresent || isCompleted}
+            disabled={!allAttendanceRegistered || isCompleted}
             className="bg-green-600 hover:bg-green-700 text-white disabled:bg-slate-200 disabled:text-slate-400"
           >
             <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -171,16 +184,18 @@ export default function ClassDetails() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {student.present ? (
-                        <Badge
-                          variant="outline"
-                          className="bg-blue-50 text-blue-700 border-blue-200"
-                        >
-                          Presente
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                      <Badge
+                        variant="outline"
+                        className={
+                          student.attendance === 'Presente'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : student.attendance === 'Ausente'
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : 'text-muted-foreground'
+                        }
+                      >
+                        {student.attendance}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -196,9 +211,9 @@ export default function ClassDetails() {
           <CardContent className="space-y-6">
             <div className="text-center">
               <div className="text-4xl font-bold mb-2">
-                28
+                {enrolledCount}
                 <span className="text-xl text-muted-foreground font-normal">
-                  /30
+                  /{maxParticipants}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">Vagas Preenchidas</p>
@@ -206,9 +221,9 @@ export default function ClassDetails() {
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
                 <span>Progresso</span>
-                <span>93%</span>
+                <span>{occupancyPercentage}%</span>
               </div>
-              <Progress value={93} className="h-2" />
+              <Progress value={occupancyPercentage} className="h-2" />
             </div>
             <div className="pt-4 border-t space-y-3">
               <div className="flex justify-between text-sm">

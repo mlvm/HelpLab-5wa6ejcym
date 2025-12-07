@@ -15,11 +15,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Student } from '@/types/class-types'
+import { cn } from '@/lib/utils'
 
 interface AttendanceDialogProps {
   open: boolean
@@ -42,49 +49,46 @@ export function AttendanceDialog({
     setLocalStudents(students)
   }, [students, open])
 
-  const togglePresence = (id: number, checked: boolean) => {
+  const updatePresence = (
+    id: number,
+    value: 'Presente' | 'Ausente' | 'Pendente',
+  ) => {
     setLocalStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, present: checked } : s)),
+      prev.map((s) => (s.id === id ? { ...s, attendance: value } : s)),
     )
   }
 
   const handleSave = () => {
-    const count = localStudents.filter((s) => s.present).length
+    const presentCount = localStudents.filter(
+      (s) => s.attendance === 'Presente',
+    ).length
     onSave(localStudents)
-    toast.success(`Presença registrada para ${count} participantes.`)
+    toast.success(`Presença registrada: ${presentCount} participantes.`)
     onOpenChange(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle>Registrar Presença</DialogTitle>
           <DialogDescription>
-            Marque os participantes presentes na turma: {className}
+            Marque a presença dos participantes da turma: {className}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-4 max-h-[60vh] overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[50px]">Presença</TableHead>
                 <TableHead>Nome</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Status Inscrição</TableHead>
+                <TableHead className="w-[180px]">Presença</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {localStudents.map((student) => (
                 <TableRow key={student.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={student.present}
-                      onCheckedChange={(checked) =>
-                        togglePresence(student.id, checked as boolean)
-                      }
-                    />
-                  </TableCell>
                   <TableCell className="font-medium">
                     <div>{student.name}</div>
                     <div className="text-xs text-muted-foreground">
@@ -106,6 +110,34 @@ export function AttendanceDialog({
                     >
                       {student.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={student.attendance}
+                      onValueChange={(val) =>
+                        updatePresence(
+                          student.id,
+                          val as 'Presente' | 'Ausente' | 'Pendente',
+                        )
+                      }
+                    >
+                      <SelectTrigger
+                        className={cn(
+                          'h-8',
+                          student.attendance === 'Presente' &&
+                            'border-green-500 text-green-700 bg-green-50',
+                          student.attendance === 'Ausente' &&
+                            'border-red-500 text-red-700 bg-red-50',
+                        )}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pendente">Pendente</SelectItem>
+                        <SelectItem value="Presente">Presente</SelectItem>
+                        <SelectItem value="Ausente">Ausente</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                 </TableRow>
               ))}

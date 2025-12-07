@@ -50,11 +50,8 @@ const App = () => (
             {/* Settings Sub-routes */}
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/account" element={<Account />} />
+            <Route path="/settings/status" element={<ClassStatusSettings />} />
             <Route path="/settings/audit" element={<Audit />} />
-            <Route
-              path="/settings/class-statuses"
-              element={<ClassStatusSettings />}
-            />
             <Route
               path="/settings/my-history"
               element={<ProfessionalHistory />}

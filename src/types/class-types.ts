@@ -1,9 +1,4 @@
-export type ClassStatus =
-  | 'Planejada'
-  | 'Aberta'
-  | 'Lotada'
-  | 'Cancelada'
-  | 'Concluída'
+export type ClassStatus = string
 
 export interface ClassItem {
   id: number
@@ -15,6 +10,7 @@ export interface ClassItem {
   location?: string
   capacity?: number
   enrolled?: number
+  maxParticipants?: number
 }
 
 export interface Student {
@@ -22,5 +18,5 @@ export interface Student {
   name: string
   cpf: string
   status: 'Confirmado' | 'Pendente'
-  present: boolean
+  attendance: 'Presente' | 'Ausente' | 'Pendente'
 }

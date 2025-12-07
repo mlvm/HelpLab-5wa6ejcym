@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { domainApi, Instructor } from '@/services/domain-api'
+import { useClassStatus } from '@/contexts/ClassStatusContext'
 
 const formSchema = z.object({
   trainingId: z.string().min(1, 'Treinamento é obrigatório'),
@@ -46,7 +47,10 @@ const formSchema = z.object({
   startTime: z.string().min(1, 'Horário de início é obrigatório'),
   endTime: z.string().min(1, 'Horário de fim é obrigatório'),
   location: z.string().min(2, 'Local é obrigatório'),
-  status: z.enum(['Planejada', 'Aberta', 'Lotada', 'Cancelada'] as const),
+  status: z.string().min(1, 'Status é obrigatório'),
+  maxParticipants: z.coerce
+    .number()
+    .min(1, 'Quantidade máxima deve ser maior que 0'),
 })
 
 export type ClassFormValues = z.infer<typeof formSchema>
@@ -63,6 +67,7 @@ export function ClassFormDialog({
   onSubmit,
 }: ClassFormDialogProps) {
   const [instructors, setInstructors] = useState<Instructor[]>([])
+  const { statuses } = useClassStatus()
 
   const form = useForm<ClassFormValues>({
     resolver: zodResolver(formSchema),
@@ -73,6 +78,7 @@ export function ClassFormDialog({
       endTime: '',
       location: '',
       status: 'Planejada',
+      maxParticipants: 30,
     },
   })
 
@@ -98,6 +104,7 @@ export function ClassFormDialog({
         endTime: '',
         location: '',
         status: 'Planejada',
+        maxParticipants: 30,
       })
     }
   }, [open, form])
@@ -197,9 +204,11 @@ export function ClassFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Planejada">Planejada</SelectItem>
-                        <SelectItem value="Aberta">Aberta</SelectItem>
-                        <SelectItem value="Lotada">Lotada</SelectItem>
+                        {statuses.map((status) => (
+                          <SelectItem key={status.id} value={status.name}>
+                            {status.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -296,6 +305,20 @@ export function ClassFormDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="maxParticipants"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quantidade Máxima de Participantes</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="submit">Salvar Turma</Button>

@@ -63,7 +63,9 @@ export function ClassStatusProvider({ children }: { children: ReactNode }) {
   }
 
   const getStatusColor = (name: string) => {
-    const status = getStatusByName(name)
+    const status = statuses.find(
+      (s) => s.name.toLowerCase() === name.toLowerCase(),
+    )
     return status ? status.color : '#64748b' // Default gray
   }
 
