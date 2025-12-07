@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -37,7 +37,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { ClassStatus } from '@/types/class-types'
+import { domainApi, Instructor } from '@/services/domain-api'
 
 const formSchema = z.object({
   trainingId: z.string().min(1, 'Treinamento é obrigatório'),
@@ -62,6 +62,8 @@ export function ClassFormDialog({
   onOpenChange,
   onSubmit,
 }: ClassFormDialogProps) {
+  const [instructors, setInstructors] = useState<Instructor[]>([])
+
   const form = useForm<ClassFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -73,6 +75,18 @@ export function ClassFormDialog({
       status: 'Planejada',
     },
   })
+
+  useEffect(() => {
+    const fetchInstructors = async () => {
+      try {
+        const data = await domainApi.getInstructors()
+        setInstructors(data)
+      } catch (error) {
+        console.error('Failed to fetch instructors', error)
+      }
+    }
+    fetchInstructors()
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -152,10 +166,14 @@ export function ClassFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="1">Dr. Silva</SelectItem>
-                        <SelectItem value="2">Enf. Maria</SelectItem>
-                        <SelectItem value="3">Adm. Roberto</SelectItem>
-                        <SelectItem value="4">Bio. Carla</SelectItem>
+                        {instructors.map((instructor) => (
+                          <SelectItem
+                            key={instructor.id_instrutor}
+                            value={instructor.id_instrutor}
+                          >
+                            {instructor.nome}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

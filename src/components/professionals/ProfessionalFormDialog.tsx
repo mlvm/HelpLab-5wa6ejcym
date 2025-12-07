@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -20,12 +20,20 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Professional } from '@/types/professional'
+import { domainApi, Unit } from '@/services/domain-api'
 
 const formSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   cpf: z.string().min(11, 'CPF deve ser válido'),
-  unit: z.string().min(2, 'Unidade é obrigatória'),
+  unit: z.string().min(1, 'Unidade é obrigatória'),
   role: z.string().min(2, 'Cargo é obrigatório'),
 })
 
@@ -46,6 +54,8 @@ export function ProfessionalFormDialog({
   professional,
   onSubmit,
 }: ProfessionalFormDialogProps) {
+  const [units, setUnits] = useState<Unit[]>([])
+
   const form = useForm<ProfessionalFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -55,6 +65,18 @@ export function ProfessionalFormDialog({
       role: '',
     },
   })
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      try {
+        const data = await domainApi.getUnits()
+        setUnits(data)
+      } catch (error) {
+        console.error('Failed to fetch units', error)
+      }
+    }
+    fetchUnits()
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -154,13 +176,28 @@ export function ProfessionalFormDialog({
                 <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
                   <FormLabel className="text-right">Unidade</FormLabel>
                   <div className="col-span-3">
-                    <FormControl>
-                      <Input
-                        placeholder="Ex: LACEN"
-                        disabled={isView}
-                        {...field}
-                      />
-                    </FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                      disabled={isView}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a unidade" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {units.map((unit) => (
+                          <SelectItem
+                            key={unit.id_unidade}
+                            value={unit.id_unidade}
+                          >
+                            {unit.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage className="mt-1" />
                   </div>
                 </FormItem>

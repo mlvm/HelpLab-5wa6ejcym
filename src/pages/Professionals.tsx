@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -32,13 +32,14 @@ import {
 } from '@/components/professionals/ProfessionalFormDialog'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { domainApi, Unit } from '@/services/domain-api'
 
 const INITIAL_DATA: Professional[] = [
   {
     id: 1,
     name: 'Ana Clara Souza',
     cpf: '123.456.789-00',
-    unit: 'Hospital Geral',
+    unit: '2', // Hospital Geral
     role: 'Enfermeira',
     status: 'Ativo',
   },
@@ -46,7 +47,7 @@ const INITIAL_DATA: Professional[] = [
     id: 2,
     name: 'Carlos Eduardo',
     cpf: '987.654.321-11',
-    unit: 'UBS Centro',
+    unit: '3', // UBS Centro
     role: 'Técnico',
     status: 'Inativo',
   },
@@ -54,7 +55,7 @@ const INITIAL_DATA: Professional[] = [
     id: 3,
     name: 'Fernanda Lima',
     cpf: '456.789.123-22',
-    unit: 'LACEN',
+    unit: '1', // LACEN
     role: 'Biomédica',
     status: 'Ativo',
   },
@@ -62,7 +63,7 @@ const INITIAL_DATA: Professional[] = [
     id: 4,
     name: 'Roberto Alves',
     cpf: '321.654.987-33',
-    unit: 'Hospital Infantil',
+    unit: '4', // Hospital Infantil
     role: 'Médico',
     status: 'Bloqueado',
   },
@@ -70,7 +71,7 @@ const INITIAL_DATA: Professional[] = [
     id: 5,
     name: 'Juliana Paes',
     cpf: '741.852.963-44',
-    unit: 'UBS Norte',
+    unit: '5', // UBS Norte
     role: 'Enfermeira',
     status: 'Ativo',
   },
@@ -82,6 +83,7 @@ export default function Professionals() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [unitFilter, setUnitFilter] = useState('all')
+  const [units, setUnits] = useState<Unit[]>([])
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'view'>('add')
@@ -89,6 +91,18 @@ export default function Professionals() {
     useState<Professional | null>(null)
 
   const { toast } = useToast()
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      try {
+        const data = await domainApi.getUnits()
+        setUnits(data)
+      } catch (error) {
+        console.error('Failed to fetch units', error)
+      }
+    }
+    fetchUnits()
+  }, [])
 
   const handleAddClick = () => {
     setDialogMode('add')
@@ -162,13 +176,15 @@ export default function Professionals() {
       (statusFilter === 'active' && p.status === 'Ativo') ||
       (statusFilter === 'inactive' && p.status !== 'Ativo')
 
-    const matchesUnit =
-      unitFilter === 'all' ||
-      (unitFilter === 'lacen' && p.unit.includes('LACEN')) ||
-      (unitFilter === 'hosp' && p.unit.toLowerCase().includes('hospital'))
+    const matchesUnit = unitFilter === 'all' || p.unit === unitFilter
 
     return matchesSearch && matchesStatus && matchesUnit
   })
+
+  const getUnitName = (unitId: string) => {
+    const unit = units.find((u) => u.id_unidade === unitId)
+    return unit ? unit.nome : unitId
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -223,8 +239,11 @@ export default function Professionals() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas Unidades</SelectItem>
-                  <SelectItem value="lacen">LACEN</SelectItem>
-                  <SelectItem value="hosp">Hospitais</SelectItem>
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id_unidade} value={unit.id_unidade}>
+                      {unit.nome}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -250,7 +269,7 @@ export default function Professionals() {
                       {professional.name}
                     </TableCell>
                     <TableCell>{professional.cpf}</TableCell>
-                    <TableCell>{professional.unit}</TableCell>
+                    <TableCell>{getUnitName(professional.unit)}</TableCell>
                     <TableCell>{professional.role}</TableCell>
                     <TableCell>
                       <Badge
