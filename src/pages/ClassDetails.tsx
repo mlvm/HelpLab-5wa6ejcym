@@ -29,7 +29,7 @@ import { Link, useParams } from 'react-router-dom'
 import { AttendanceDialog } from '@/components/classes/AttendanceDialog'
 import { Student } from '@/types/class-types'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { useClassStatus } from '@/contexts/ClassStatusContext'
 
 const initialStudents: Student[] = [
   {
@@ -60,6 +60,7 @@ export default function ClassDetails() {
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
   const [students, setStudents] = useState<Student[]>(initialStudents)
   const [classStatus, setClassStatus] = useState<string>('Lotada')
+  const { getStatusColor, statuses } = useClassStatus()
 
   const handleAttendanceSave = (updatedStudents: Student[]) => {
     setStudents(updatedStudents)
@@ -69,9 +70,19 @@ export default function ClassDetails() {
     .filter((s) => s.status === 'Confirmado')
     .every((s) => s.present)
 
+  const isCompleted =
+    classStatus === 'Concluída' ||
+    classStatus === statuses.find((s) => s.id === 'completed')?.name
+
   const handleCompleteClass = () => {
-    setClassStatus('Concluída')
-    toast.success('Turma marcada como Concluída com sucesso!')
+    const completedStatus = statuses.find((s) => s.id === 'completed')
+    if (completedStatus) {
+      setClassStatus(completedStatus.name)
+      toast.success(`Turma marcada como ${completedStatus.name} com sucesso!`)
+    } else {
+      setClassStatus('Concluída')
+      toast.success('Turma marcada como Concluída com sucesso!')
+    }
   }
 
   return (
@@ -107,21 +118,17 @@ export default function ClassDetails() {
           </Button>
           <Button
             onClick={() => setIsAttendanceOpen(true)}
-            disabled={classStatus === 'Concluída'}
+            disabled={isCompleted}
           >
             <CheckSquare className="mr-2 h-4 w-4" /> Registrar Presença
           </Button>
           <Button
             onClick={handleCompleteClass}
-            disabled={!allConfirmedPresent || classStatus === 'Concluída'}
-            variant={classStatus === 'Concluída' ? 'secondary' : 'default'}
-            className={cn(
-              classStatus === 'Concluída' &&
-                'bg-green-100 text-green-800 hover:bg-green-200',
-            )}
+            disabled={!allConfirmedPresent || isCompleted}
+            className="bg-green-600 hover:bg-green-700 text-white disabled:bg-slate-200 disabled:text-slate-400"
           >
             <CheckCircle2 className="mr-2 h-4 w-4" />
-            {classStatus === 'Concluída' ? 'Concluída' : 'Concluir Turma'}
+            {isCompleted ? 'Concluída' : 'Concluir Turma'}
           </Button>
         </div>
       </div>
@@ -211,17 +218,11 @@ export default function ClassDetails() {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Status</span>
                 <Badge
-                  variant={
-                    classStatus === 'Concluída'
-                      ? 'secondary'
-                      : classStatus === 'Lotada'
-                        ? 'destructive'
-                        : 'default'
-                  }
-                  className={cn(
-                    classStatus === 'Concluída' &&
-                      'bg-green-100 text-green-800 hover:bg-green-200 border-transparent',
-                  )}
+                  variant="outline"
+                  className="border-transparent text-white"
+                  style={{
+                    backgroundColor: getStatusColor(classStatus),
+                  }}
                 >
                   {classStatus}
                 </Badge>

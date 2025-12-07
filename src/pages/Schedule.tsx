@@ -19,6 +19,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { DateRange } from 'react-day-picker'
 import { isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { useClassStatus } from '@/contexts/ClassStatusContext'
 
 const initialClasses = [
   {
@@ -69,6 +70,7 @@ export default function Schedule() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [selectedInstructors, setSelectedInstructors] = useState<string[]>([])
+  const { statuses, getStatusColor } = useClassStatus()
 
   const handleCreateClass = (data: ClassFormValues) => {
     const newClass = {
@@ -91,8 +93,8 @@ export default function Schedule() {
     )
   }
 
-  const toggleStatusFilter = (status: string) => {
-    setStatusFilter((prev) => (prev === status ? null : status))
+  const toggleStatusFilter = (statusName: string) => {
+    setStatusFilter((prev) => (prev === statusName ? null : statusName))
   }
 
   const filteredClasses = classes.filter((cls) => {
@@ -184,15 +186,11 @@ export default function Schedule() {
                       </div>
                       <div>
                         <Badge
-                          variant={
-                            cls.status === 'Lotada'
-                              ? 'destructive'
-                              : cls.status === 'Aberta'
-                                ? 'default'
-                                : cls.status === 'Planejada'
-                                  ? 'secondary'
-                                  : 'outline'
-                          }
+                          variant="outline"
+                          className="border-transparent text-white"
+                          style={{
+                            backgroundColor: getStatusColor(cls.status),
+                          }}
                         >
                           {cls.status}
                         </Badge>
@@ -226,18 +224,23 @@ export default function Schedule() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
               <div className="flex flex-wrap gap-2">
-                {['Aberta', 'Lotada', 'Planejada'].map((status) => (
+                {statuses.map((status) => (
                   <Badge
-                    key={status}
-                    variant={statusFilter === status ? 'default' : 'outline'}
-                    className="cursor-pointer hover:bg-secondary"
-                    onClick={() => toggleStatusFilter(status)}
+                    key={status.id}
+                    variant="outline"
+                    className={cn(
+                      'cursor-pointer hover:opacity-80 transition-opacity',
+                      statusFilter === status.name && 'ring-2 ring-offset-1',
+                    )}
+                    style={{
+                      backgroundColor: status.color,
+                      color: 'white',
+                      borderColor: status.color,
+                      ringColor: status.color,
+                    }}
+                    onClick={() => toggleStatusFilter(status.name)}
                   >
-                    {status === 'Aberta'
-                      ? 'Abertas'
-                      : status === 'Lotada'
-                        ? 'Lotadas'
-                        : 'Planejadas'}
+                    {status.name}
                   </Badge>
                 ))}
               </div>

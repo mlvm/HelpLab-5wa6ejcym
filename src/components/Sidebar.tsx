@@ -72,6 +72,7 @@ export function Sidebar({
         { label: 'Integrações & IA', href: '/settings' },
         { label: 'Auditoria', href: '/settings/audit' },
         { label: 'Contas', href: '/settings/account' },
+        { label: 'Status de Turmas', href: '/settings/class-statuses' },
       ],
     },
   ]

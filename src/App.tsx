@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -20,42 +20,50 @@ import NotFound from './pages/NotFound'
 import Units from './pages/Units'
 import Instructors from './pages/Instructors'
 import Account from './pages/Account'
+import ClassStatusSettings from './pages/ClassStatusSettings'
+import { ClassStatusProvider } from '@/contexts/ClassStatusContext'
 
 const App = () => (
   <BrowserRouter
     future={{ v7_startTransition: false, v7_relativeSplatPath: false }}
   >
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <Routes>
-        <Route path="/login" element={<Login />} />
+      <ClassStatusProvider>
+        <Toaster />
+        <Sonner />
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
-        <Route element={<Layout />}>
-          <Route path="/" element={<Index />} />
-          <Route path="/whatsapp-panel" element={<WhatsappPanel />} />
-          <Route path="/professionals" element={<Professionals />} />
-          <Route path="/instructors" element={<Instructors />} />
-          <Route path="/units" element={<Units />} />
-          <Route path="/trainings" element={<Trainings />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/class/:id" element={<ClassDetails />} />
-          <Route path="/appointments" element={<Appointments />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/communications" element={<Communications />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/whatsapp-panel" element={<WhatsappPanel />} />
+            <Route path="/professionals" element={<Professionals />} />
+            <Route path="/instructors" element={<Instructors />} />
+            <Route path="/units" element={<Units />} />
+            <Route path="/trainings" element={<Trainings />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/class/:id" element={<ClassDetails />} />
+            <Route path="/appointments" element={<Appointments />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/communications" element={<Communications />} />
 
-          {/* Settings Sub-routes */}
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/settings/account" element={<Account />} />
-          <Route path="/settings/audit" element={<Audit />} />
-          <Route
-            path="/settings/my-history"
-            element={<ProfessionalHistory />}
-          />
-        </Route>
+            {/* Settings Sub-routes */}
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/account" element={<Account />} />
+            <Route path="/settings/audit" element={<Audit />} />
+            <Route
+              path="/settings/class-statuses"
+              element={<ClassStatusSettings />}
+            />
+            <Route
+              path="/settings/my-history"
+              element={<ProfessionalHistory />}
+            />
+          </Route>
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </ClassStatusProvider>
     </TooltipProvider>
   </BrowserRouter>
 )
