@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,16 +11,6 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 import { Search, Plus, MoreHorizontal } from 'lucide-react'
 import {
   DropdownMenu,
@@ -27,14 +18,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Training, TrainingStatus } from '@/types/training'
+import {
+  TrainingFormDialog,
+  TrainingFormValues,
+} from '@/components/trainings/TrainingFormDialog'
+import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 
-const trainings = [
+const INITIAL_TRAININGS: Training[] = [
   {
     id: 1,
     name: 'Biossegurança Básica',
     hours: '4h',
     capacity: 30,
     status: 'Ativo',
+    description: 'Curso introdutório sobre biossegurança.',
   },
   {
     id: 2,
@@ -42,6 +41,7 @@ const trainings = [
     hours: '8h',
     capacity: 20,
     status: 'Ativo',
+    description: 'Técnicas avançadas de primeiros socorros.',
   },
   {
     id: 3,
@@ -49,6 +49,7 @@ const trainings = [
     hours: '6h',
     capacity: 25,
     status: 'Inativo',
+    description: 'Gerenciamento adequado de resíduos de saúde.',
   },
   {
     id: 4,
@@ -56,10 +57,75 @@ const trainings = [
     hours: '4h',
     capacity: 30,
     status: 'Ativo',
+    description: 'Procedimentos para coleta segura.',
   },
 ]
 
 export default function Trainings() {
+  const [trainings, setTrainings] = useState<Training[]>(INITIAL_TRAININGS)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add')
+  const [selectedTraining, setSelectedTraining] = useState<Training | null>(
+    null,
+  )
+
+  const { toast } = useToast()
+
+  const handleAddClick = () => {
+    setDialogMode('add')
+    setSelectedTraining(null)
+    setDialogOpen(true)
+  }
+
+  const handleEditClick = (training: Training) => {
+    setDialogMode('edit')
+    setSelectedTraining(training)
+    setDialogOpen(true)
+  }
+
+  const handleStatusChange = (id: number, currentStatus: TrainingStatus) => {
+    const newStatus: TrainingStatus =
+      currentStatus === 'Ativo' ? 'Inativo' : 'Ativo'
+
+    setTrainings((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
+    )
+
+    toast({
+      title: 'Status atualizado',
+      description: `O treinamento foi ${newStatus === 'Ativo' ? 'ativado' : 'inativado'} com sucesso.`,
+    })
+  }
+
+  const handleFormSubmit = (data: TrainingFormValues) => {
+    if (dialogMode === 'add') {
+      const newId = Math.max(...trainings.map((t) => t.id), 0) + 1
+      const newTraining: Training = {
+        id: newId,
+        status: 'Ativo',
+        ...data,
+      }
+      setTrainings((prev) => [...prev, newTraining])
+      toast({
+        title: 'Treinamento criado',
+        description: `${data.name} foi cadastrado com sucesso.`,
+      })
+    } else if (dialogMode === 'edit' && selectedTraining) {
+      setTrainings((prev) =>
+        prev.map((t) => (t.id === selectedTraining.id ? { ...t, ...data } : t)),
+      )
+      toast({
+        title: 'Treinamento atualizado',
+        description: `Os dados de ${data.name} foram atualizados.`,
+      })
+    }
+  }
+
+  const filteredTrainings = trainings.filter((t) =>
+    t.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -71,51 +137,21 @@ export default function Trainings() {
             Gerencie os cursos e capacitações disponíveis.
           </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Criar Treinamento
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Novo Treinamento</DialogTitle>
-              <DialogDescription>
-                Cadastre um novo treinamento no catálogo.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Treinamento</Label>
-                <Input id="name" placeholder="Ex: Biossegurança" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="hours">Carga Horária</Label>
-                  <Input id="hours" placeholder="Ex: 4h" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="capacity">Capacidade Máxima</Label>
-                  <Input id="capacity" type="number" placeholder="30" />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="desc">Descrição</Label>
-                <Input id="desc" placeholder="Breve descrição..." />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Salvar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={handleAddClick}>
+          <Plus className="mr-2 h-4 w-4" /> Criar Treinamento
+        </Button>
       </div>
 
       <Card>
         <CardHeader className="pb-3">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar treinamento..." className="pl-8" />
+            <Input
+              placeholder="Buscar treinamento..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -130,39 +166,81 @@ export default function Trainings() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {trainings.map((training) => (
-                <TableRow key={training.id}>
-                  <TableCell className="font-medium">{training.name}</TableCell>
-                  <TableCell>{training.hours}</TableCell>
-                  <TableCell>{training.capacity} alunos</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        training.status === 'Ativo' ? 'default' : 'secondary'
-                      }
-                    >
-                      {training.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Ver Turmas</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {filteredTrainings.length > 0 ? (
+                filteredTrainings.map((training) => (
+                  <TableRow key={training.id}>
+                    <TableCell className="font-medium">
+                      {training.name}
+                    </TableCell>
+                    <TableCell>{training.hours}</TableCell>
+                    <TableCell>{training.capacity} alunos</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="default"
+                        className={cn(
+                          'hover:bg-opacity-80 border-transparent text-white',
+                          training.status === 'Ativo'
+                            ? 'bg-blue-500 hover:bg-blue-600'
+                            : 'bg-red-500 hover:bg-red-600',
+                        )}
+                      >
+                        {training.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleEditClick(training)}
+                          >
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className={
+                              training.status === 'Ativo'
+                                ? 'text-destructive'
+                                : 'text-primary'
+                            }
+                            onClick={() =>
+                              handleStatusChange(training.id, training.status)
+                            }
+                          >
+                            {training.status === 'Ativo'
+                              ? 'Inativar'
+                              : 'Ativar'}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="h-24 text-center text-muted-foreground"
+                  >
+                    Nenhum treinamento encontrado.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <TrainingFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        mode={dialogMode}
+        training={selectedTraining}
+        onSubmit={handleFormSubmit}
+      />
     </div>
   )
 }

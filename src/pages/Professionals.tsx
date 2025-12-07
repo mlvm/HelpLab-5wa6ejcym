@@ -31,6 +31,7 @@ import {
   ProfessionalFormValues,
 } from '@/components/professionals/ProfessionalFormDialog'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 
 const INITIAL_DATA: Professional[] = [
   {
@@ -253,13 +254,13 @@ export default function Professionals() {
                     <TableCell>{professional.role}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={
+                        variant="default"
+                        className={cn(
+                          'hover:bg-opacity-80 border-transparent text-white',
                           professional.status === 'Ativo'
-                            ? 'default'
-                            : professional.status === 'Bloqueado'
-                              ? 'destructive'
-                              : 'secondary'
-                        }
+                            ? 'bg-blue-500 hover:bg-blue-600'
+                            : 'bg-red-500 hover:bg-red-600',
+                        )}
                       >
                         {professional.status}
                       </Badge>
