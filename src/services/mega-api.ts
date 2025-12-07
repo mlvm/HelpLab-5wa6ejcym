@@ -6,34 +6,90 @@ import {
   ChatSender,
 } from '@/pages/WhatsappPanel.data'
 
-// Mock API Service simulating Mega API interactions
+// Service simulating Mega API interactions with "Real" capabilities
+// In a real scenario, this would call the actual HTTP endpoints.
+// For this demo, it simulates the backend logic on the client-side
+// but structures the calls as if they were real API interactions.
+
 class MegaApiService {
+  private apiKey: string | null = null
+  private webhookUrl: string | null = null
   private isConnected = false
-  private conversations: WhatsappConversation[] = [...SEED_CONVERSATIONS]
-  private messages: Record<string, WhatsappMessage[]> = JSON.parse(
-    JSON.stringify(SEED_MESSAGES),
-  )
+  private conversations: WhatsappConversation[] = []
+  private messages: Record<string, WhatsappMessage[]> = {}
   private listeners: ((data: any) => void)[] = []
+  private pollingInterval: NodeJS.Timeout | null = null
 
   constructor() {
-    // Simulate some background activity
-    setInterval(() => {
-      if (this.isConnected && Math.random() > 0.95) {
-        this.simulateIncomingMessage()
-      }
-    }, 10000)
+    // Load persisted config (Simulating Supabase Secrets fetch)
+    const storedKey = localStorage.getItem('mega_api_key')
+    const storedUrl = localStorage.getItem('mega_webhook_url')
+    if (storedKey) this.apiKey = storedKey
+    if (storedUrl) this.webhookUrl = storedUrl
+
+    // Initialize with seed data if empty (Simulating DB fetch)
+    if (Object.keys(this.messages).length === 0) {
+      this.messages = JSON.parse(JSON.stringify(SEED_MESSAGES))
+      this.conversations = [...SEED_CONVERSATIONS]
+    }
+  }
+
+  // --- Configuration ---
+
+  async updateConfiguration(
+    apiKey: string,
+    webhookUrl: string,
+  ): Promise<boolean> {
+    // Simulate secure storage
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        this.apiKey = apiKey
+        this.webhookUrl = webhookUrl
+        localStorage.setItem('mega_api_key', apiKey)
+        localStorage.setItem('mega_webhook_url', webhookUrl)
+        resolve(true)
+      }, 800)
+    })
+  }
+
+  getCredentials() {
+    return {
+      apiKey: this.apiKey,
+      webhookUrl: this.webhookUrl,
+    }
   }
 
   // --- Connection ---
 
-  async connect(apiKey: string): Promise<boolean> {
-    console.log('Connecting to Mega API with key:', apiKey)
+  async testConnection(key: string): Promise<boolean> {
+    console.log('Testing connection with key:', key)
+    // Simulate an API Health Check call
+    // In real implementation: await fetch('https://api.mega.com/v1/health', { headers: { Authorization: `Bearer ${key}` } })
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (key && key.length > 10) {
+          resolve(true)
+        } else {
+          reject(new Error('Invalid API Key format'))
+        }
+      }, 1500)
+    })
+  }
+
+  async connect(): Promise<boolean> {
+    if (!this.apiKey) {
+      console.warn('Cannot connect: No API Key configured')
+      return false
+    }
+
+    console.log('Connecting to Mega API...')
     return new Promise((resolve) => {
       setTimeout(() => {
         this.isConnected = true
+        this.startWebhookSimulation()
         this.notifyListeners()
         resolve(true)
-      }, 1500)
+      }, 1000)
     })
   }
 
@@ -41,6 +97,7 @@ class MegaApiService {
     return new Promise((resolve) => {
       setTimeout(() => {
         this.isConnected = false
+        this.stopWebhookSimulation()
         this.notifyListeners()
         resolve()
       }, 500)
@@ -54,6 +111,11 @@ class MegaApiService {
   // --- Data Fetching ---
 
   async getConversations(): Promise<WhatsappConversation[]> {
+    if (!this.isConnected) {
+      // Return empty if not connected to simulate "Real" behavior requiring auth
+      return []
+    }
+
     return new Promise((resolve) => {
       setTimeout(() => {
         // Sort by last message date descending
@@ -68,6 +130,8 @@ class MegaApiService {
   }
 
   async getMessages(conversationId: string): Promise<WhatsappMessage[]> {
+    if (!this.isConnected) return []
+
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve(this.messages[conversationId] || [])
@@ -82,6 +146,8 @@ class MegaApiService {
     content: string,
     sender: ChatSender = 'USUARIO',
   ): Promise<WhatsappMessage> {
+    if (!this.isConnected) throw new Error('Not connected to Mega API')
+
     return new Promise((resolve) => {
       setTimeout(() => {
         const newMessage: WhatsappMessage = {
@@ -116,28 +182,28 @@ class MegaApiService {
   }
 
   private triggerBotResponse(conversationId: string, userContent: string) {
-    setTimeout(
-      () => {
-        const { text, action } = this.generateAIResponse(userContent)
+    // Determine delay based on content length to simulate "thinking"
+    const thinkingTime = 1500 + Math.random() * 2000
 
-        const botMessage: WhatsappMessage = {
-          id: `m${Date.now()}_bot`,
-          conversaId: conversationId,
-          remetente: 'BOT',
-          conteudo: text,
-          criadoEm: new Date().toISOString(),
-          acaoExecutadaPeloBot: `Ação: ${action}`,
-        }
+    setTimeout(() => {
+      const { text, action } = this.generateAIResponse(userContent)
 
-        this.messages[conversationId].push(botMessage)
-        this.updateConversationPreview(conversationId, botMessage)
-        this.notifyListeners()
-      },
-      1500 + Math.random() * 1000,
-    ) // 1.5s - 2.5s delay
+      const botMessage: WhatsappMessage = {
+        id: `m${Date.now()}_bot`,
+        conversaId: conversationId,
+        remetente: 'BOT',
+        conteudo: text,
+        criadoEm: new Date().toISOString(),
+        acaoExecutadaPeloBot: `Ação: ${action}`,
+      }
+
+      this.messages[conversationId].push(botMessage)
+      this.updateConversationPreview(conversationId, botMessage)
+      this.notifyListeners()
+    }, thinkingTime)
   }
 
-  // --- AI Logic Simulation ---
+  // --- AI Logic Simulation (Mega API Brain) ---
 
   private detectIntent(content: string): string {
     const lower = content.toLowerCase()
@@ -211,21 +277,47 @@ class MegaApiService {
             ? (this.conversations[convIndex].unreadCount || 0) + 1
             : 0,
       }
+    } else {
+      // New conversation simulation
+      // In real app, this would come from a webhook event for "message_received"
     }
   }
 
-  private simulateIncomingMessage() {
+  // --- Webhook Simulation (Polling) ---
+
+  private startWebhookSimulation() {
+    if (this.pollingInterval) clearInterval(this.pollingInterval)
+
+    // Simulate incoming webhooks
+    this.pollingInterval = setInterval(() => {
+      if (this.isConnected && Math.random() > 0.85) {
+        this.simulateIncomingWebhook()
+      }
+    }, 8000)
+  }
+
+  private stopWebhookSimulation() {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval)
+      this.pollingInterval = null
+    }
+  }
+
+  private simulateIncomingWebhook() {
     const randomConv =
       this.conversations[Math.floor(Math.random() * this.conversations.length)]
+    if (!randomConv) return
+
     const msgs = [
       'Olá, ainda tem vaga?',
       'Não recebi meu link.',
       'Gostaria de falar com atendente.',
       'Obrigado!',
+      'Qual o endereço do curso?',
     ]
     const content = msgs[Math.floor(Math.random() * msgs.length)]
 
-    this.sendMessage(randomConv.id, content, 'USUARIO')
+    this.sendMessage(randomConv.id, content, 'USUARIO').catch(console.error)
   }
 
   // --- Subscription Pattern ---

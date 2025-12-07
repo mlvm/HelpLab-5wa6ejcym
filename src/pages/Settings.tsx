@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Card,
@@ -5,13 +6,97 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { useToast } from '@/hooks/use-toast'
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react'
+import { megaApi } from '@/services/mega-api'
 
 export default function Settings() {
+  const [apiKey, setApiKey] = useState('')
+  const [webhookUrl, setWebhookUrl] = useState('')
+  const [showKey, setShowKey] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const { toast } = useToast()
+
+  // Load existing credentials on mount
+  useEffect(() => {
+    const credentials = megaApi.getCredentials()
+    if (credentials.apiKey) setApiKey(credentials.apiKey)
+    if (credentials.webhookUrl) setWebhookUrl(credentials.webhookUrl)
+  }, [])
+
+  const handleSaveMegaApi = async () => {
+    if (!apiKey || !webhookUrl) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de Validação',
+        description: 'Por favor, preencha todos os campos obrigatórios.',
+      })
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      await megaApi.updateConfiguration(apiKey, webhookUrl)
+      toast({
+        title: 'Configuração Salva',
+        description: 'Credenciais da Mega API atualizadas com sucesso.',
+        action: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao Salvar',
+        description: 'Não foi possível persistir as credenciais.',
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleTestConnection = async () => {
+    if (!apiKey) {
+      toast({
+        variant: 'destructive',
+        title: 'Chave de API necessária',
+        description: 'Insira uma chave de API para testar.',
+      })
+      return
+    }
+
+    setIsTesting(true)
+    try {
+      await megaApi.testConnection(apiKey)
+      toast({
+        title: 'Conexão Bem-sucedida',
+        description: 'A Mega API respondeu corretamente.',
+        action: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Falha na Conexão',
+        description:
+          'Não foi possível conectar com a Mega API. Verifique a chave.',
+      })
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -23,7 +108,7 @@ export default function Settings() {
         </p>
       </div>
 
-      <Tabs defaultValue="rules" className="space-y-4">
+      <Tabs defaultValue="integrations" className="space-y-4">
         <TabsList>
           <TabsTrigger value="rules">Regras de Negócio</TabsTrigger>
           <TabsTrigger value="templates">Modelos de Mensagem</TabsTrigger>
@@ -95,19 +180,95 @@ export default function Settings() {
         <TabsContent value="integrations">
           <Card>
             <CardHeader>
-              <CardTitle>API do WhatsApp</CardTitle>
+              <CardTitle>WhatsApp API (Mega API)</CardTitle>
+              <CardDescription>
+                Configure as credenciais para conexão com a Inteligência
+                Artificial do WhatsApp.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label>API Key</Label>
-                <Input
-                  type="password"
-                  value="************************"
-                  readOnly
-                />
+                <Label htmlFor="api-key">Mega API Key</Label>
+                <div className="relative">
+                  <Input
+                    id="api-key"
+                    type={showKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="mega_live_..."
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowKey(!showKey)}
+                  >
+                    {showKey ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="sr-only">Toggle password visibility</span>
+                  </Button>
+                </div>
+                <p className="text-[0.8rem] text-muted-foreground">
+                  Chave de produção para acesso aos endpoints da Mega API.
+                </p>
               </div>
-              <Button>Testar Conexão</Button>
+
+              <div className="grid gap-2">
+                <Label htmlFor="webhook-url">Webhook URL</Label>
+                <Input
+                  id="webhook-url"
+                  type="url"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://sua-app.com/api/webhooks/mega"
+                />
+                <p className="text-[0.8rem] text-muted-foreground">
+                  Endpoint para receber eventos de mensagens e status em tempo
+                  real.
+                </p>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                <p className="text-xs text-yellow-800">
+                  Certifique-se de que a URL do Webhook está publicamente
+                  acessível para receber notificações da Mega API.
+                </p>
+              </div>
             </CardContent>
+            <CardFooter className="flex justify-between border-t p-6 bg-muted/20">
+              <Button
+                variant="outline"
+                onClick={handleTestConnection}
+                disabled={isTesting || !apiKey}
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{' '}
+                    Testando...
+                  </>
+                ) : (
+                  'Testar Conexão'
+                )}
+              </Button>
+              <Button onClick={handleSaveMegaApi} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{' '}
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" /> Salvar Configurações
+                  </>
+                )}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

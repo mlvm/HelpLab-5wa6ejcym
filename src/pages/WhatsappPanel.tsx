@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Search, Loader2, Wifi, WifiOff } from 'lucide-react'
+import { Search, Loader2, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 
 import {
@@ -31,6 +33,7 @@ export default function WhatsappPanel() {
   const [notes, setNotes] = useState('')
   const [isWhatsappConnected, setIsWhatsappConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [missingConfig, setMissingConfig] = useState(false)
   const [conversations, setConversations] = useState<WhatsappConversation[]>([])
   const [messages, setMessages] = useState<WhatsappMessage[]>([])
   const { toast } = useToast()
@@ -39,17 +42,34 @@ export default function WhatsappPanel() {
   useEffect(() => {
     const init = async () => {
       try {
-        // Simulate auth with API Key
-        await megaApi.connect('MEGA_API_KEY_SECRET_123')
-        setIsWhatsappConnected(true)
-        const convs = await megaApi.getConversations()
-        setConversations(convs)
+        // Check for credentials first
+        const creds = megaApi.getCredentials()
+        if (!creds.apiKey) {
+          setMissingConfig(true)
+          setIsLoading(false)
+          return
+        }
+
+        // Connect with stored credentials
+        const connected = await megaApi.connect()
+        if (connected) {
+          setIsWhatsappConnected(true)
+          const convs = await megaApi.getConversations()
+          setConversations(convs)
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Falha na Conexão',
+            description:
+              'Verifique suas credenciais da Mega API nas configurações.',
+          })
+        }
       } catch (error) {
         console.error('Failed to connect to Mega API', error)
         toast({
           variant: 'destructive',
           title: 'Erro de Conexão',
-          description: 'Falha ao conectar com a Mega API.',
+          description: 'Falha crítica ao conectar com a Mega API.',
         })
       } finally {
         setIsLoading(false)
@@ -92,12 +112,21 @@ export default function WhatsappPanel() {
     setIsLoading(true)
     try {
       if (checked) {
-        await megaApi.connect('API_KEY_RECONNECT')
-        setIsWhatsappConnected(true)
-        toast({
-          title: 'Conectado',
-          description: 'Serviço de IA Mega API ativo.',
-        })
+        const connected = await megaApi.connect()
+        if (connected) {
+          setIsWhatsappConnected(true)
+          toast({
+            title: 'Conectado',
+            description: 'Serviço de IA Mega API ativo.',
+          })
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Erro',
+            description:
+              'Não foi possível conectar. Verifique as configurações.',
+          })
+        }
       } else {
         await megaApi.disconnect()
         setIsWhatsappConnected(false)
@@ -115,8 +144,15 @@ export default function WhatsappPanel() {
 
   const handleSendMessage = async (text: string, sender: 'USUARIO' | 'BOT') => {
     if (selectedConversationId) {
-      await megaApi.sendMessage(selectedConversationId, text, sender)
-      // Messages will update via subscription
+      try {
+        await megaApi.sendMessage(selectedConversationId, text, sender)
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao enviar',
+          description: 'Verifique sua conexão com a Mega API.',
+        })
+      }
     }
   }
 
@@ -133,6 +169,24 @@ export default function WhatsappPanel() {
   const currentAppointments = SEED_APPOINTMENTS.filter(
     (a) => a.conversaId === selectedConversationId,
   )
+
+  if (missingConfig) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] animate-fade-in">
+        <div className="text-center space-y-4 max-w-md p-6 border rounded-lg bg-slate-50">
+          <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto" />
+          <h2 className="text-xl font-bold">Configuração Necessária</h2>
+          <p className="text-muted-foreground">
+            Para acessar o painel do WhatsApp, é necessário configurar as
+            credenciais da Mega API.
+          </p>
+          <Button asChild>
+            <Link to="/settings">Ir para Configurações</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] animate-fade-in gap-4">
