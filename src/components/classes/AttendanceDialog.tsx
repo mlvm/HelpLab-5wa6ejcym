@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,61 +19,38 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-
-interface Student {
-  id: number
-  name: string
-  cpf: string
-  status: 'Confirmado' | 'Pendente'
-  present: boolean
-}
+import { Student } from '@/types/class-types'
 
 interface AttendanceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   className: string
+  students: Student[]
+  onSave: (students: Student[]) => void
 }
-
-// Mock Data for Students
-const initialStudents: Student[] = [
-  {
-    id: 1,
-    name: 'Ana Clara Souza',
-    cpf: '123.***.***-00',
-    status: 'Confirmado',
-    present: false,
-  },
-  {
-    id: 2,
-    name: 'Carlos Eduardo',
-    cpf: '987.***.***-11',
-    status: 'Confirmado',
-    present: false,
-  },
-  {
-    id: 3,
-    name: 'João Paulo',
-    cpf: '456.***.***-22',
-    status: 'Pendente',
-    present: false,
-  },
-]
 
 export function AttendanceDialog({
   open,
   onOpenChange,
   className,
+  students,
+  onSave,
 }: AttendanceDialogProps) {
-  const [students, setStudents] = useState<Student[]>(initialStudents)
+  const [localStudents, setLocalStudents] = useState<Student[]>(students)
+
+  useEffect(() => {
+    setLocalStudents(students)
+  }, [students, open])
 
   const togglePresence = (id: number, checked: boolean) => {
-    setStudents((prev) =>
+    setLocalStudents((prev) =>
       prev.map((s) => (s.id === id ? { ...s, present: checked } : s)),
     )
   }
 
   const handleSave = () => {
-    const count = students.filter((s) => s.present).length
+    const count = localStudents.filter((s) => s.present).length
+    onSave(localStudents)
     toast.success(`Presença registrada para ${count} participantes.`)
     onOpenChange(false)
   }
@@ -98,7 +75,7 @@ export function AttendanceDialog({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {students.map((student) => (
+              {localStudents.map((student) => (
                 <TableRow key={student.id}>
                   <TableCell>
                     <Checkbox

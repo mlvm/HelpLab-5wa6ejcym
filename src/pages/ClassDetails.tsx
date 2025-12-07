@@ -18,19 +18,61 @@ import {
 } from '@/components/ui/table'
 import { Progress } from '@/components/ui/progress'
 import {
-  Users,
   Calendar,
   MapPin,
   Printer,
   MessageSquare,
   CheckSquare,
+  CheckCircle2,
 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { AttendanceDialog } from '@/components/classes/AttendanceDialog'
+import { Student } from '@/types/class-types'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+
+const initialStudents: Student[] = [
+  {
+    id: 1,
+    name: 'Ana Clara Souza',
+    cpf: '123.***.***-00',
+    status: 'Confirmado',
+    present: false,
+  },
+  {
+    id: 2,
+    name: 'Carlos Eduardo',
+    cpf: '987.***.***-11',
+    status: 'Confirmado',
+    present: false,
+  },
+  {
+    id: 3,
+    name: 'João Paulo',
+    cpf: '456.***.***-22',
+    status: 'Pendente',
+    present: false,
+  },
+]
 
 export default function ClassDetails() {
   const { id } = useParams()
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
+  const [students, setStudents] = useState<Student[]>(initialStudents)
+  const [classStatus, setClassStatus] = useState<string>('Lotada')
+
+  const handleAttendanceSave = (updatedStudents: Student[]) => {
+    setStudents(updatedStudents)
+  }
+
+  const allConfirmedPresent = students
+    .filter((s) => s.status === 'Confirmado')
+    .every((s) => s.present)
+
+  const handleCompleteClass = () => {
+    setClassStatus('Concluída')
+    toast.success('Turma marcada como Concluída com sucesso!')
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -56,15 +98,30 @@ export default function ClassDetails() {
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline">
             <Printer className="mr-2 h-4 w-4" /> Lista de Presença
           </Button>
           <Button variant="outline">
             <MessageSquare className="mr-2 h-4 w-4" /> Comunicar
           </Button>
-          <Button onClick={() => setIsAttendanceOpen(true)}>
+          <Button
+            onClick={() => setIsAttendanceOpen(true)}
+            disabled={classStatus === 'Concluída'}
+          >
             <CheckSquare className="mr-2 h-4 w-4" /> Registrar Presença
+          </Button>
+          <Button
+            onClick={handleCompleteClass}
+            disabled={!allConfirmedPresent || classStatus === 'Concluída'}
+            variant={classStatus === 'Concluída' ? 'secondary' : 'default'}
+            className={cn(
+              classStatus === 'Concluída' &&
+                'bg-green-100 text-green-800 hover:bg-green-200',
+            )}
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            {classStatus === 'Concluída' ? 'Concluída' : 'Concluir Turma'}
           </Button>
         </div>
       </div>
@@ -88,45 +145,38 @@ export default function ClassDetails() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Ana Clara Souza</TableCell>
-                  <TableCell>123.***.***-00</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className="bg-green-50 text-green-700 border-green-200"
-                    >
-                      Confirmado
-                    </Badge>
-                  </TableCell>
-                  <TableCell>-</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Carlos Eduardo</TableCell>
-                  <TableCell>987.***.***-11</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className="bg-green-50 text-green-700 border-green-200"
-                    >
-                      Confirmado
-                    </Badge>
-                  </TableCell>
-                  <TableCell>-</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">João Paulo</TableCell>
-                  <TableCell>456.***.***-22</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className="bg-yellow-50 text-yellow-700 border-yellow-200"
-                    >
-                      Pendente
-                    </Badge>
-                  </TableCell>
-                  <TableCell>-</TableCell>
-                </TableRow>
+                {students.map((student) => (
+                  <TableRow key={student.id}>
+                    <TableCell className="font-medium">
+                      {student.name}
+                    </TableCell>
+                    <TableCell>{student.cpf}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          student.status === 'Confirmado'
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                        }
+                      >
+                        {student.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {student.present ? (
+                        <Badge
+                          variant="outline"
+                          className="bg-blue-50 text-blue-700 border-blue-200"
+                        >
+                          Presente
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </CardContent>
@@ -160,7 +210,21 @@ export default function ClassDetails() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Status</span>
-                <Badge>Lotada</Badge>
+                <Badge
+                  variant={
+                    classStatus === 'Concluída'
+                      ? 'secondary'
+                      : classStatus === 'Lotada'
+                        ? 'destructive'
+                        : 'default'
+                  }
+                  className={cn(
+                    classStatus === 'Concluída' &&
+                      'bg-green-100 text-green-800 hover:bg-green-200 border-transparent',
+                  )}
+                >
+                  {classStatus}
+                </Badge>
               </div>
             </div>
           </CardContent>
@@ -171,6 +235,8 @@ export default function ClassDetails() {
         open={isAttendanceOpen}
         onOpenChange={setIsAttendanceOpen}
         className="Biossegurança Básica - Turma A"
+        students={students}
+        onSave={handleAttendanceSave}
       />
     </div>
   )

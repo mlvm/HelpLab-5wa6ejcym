@@ -16,3 +16,11 @@ export interface ClassItem {
   capacity?: number
   enrolled?: number
 }
+
+export interface Student {
+  id: number
+  name: string
+  cpf: string
+  status: 'Confirmado' | 'Pendente'
+  present: boolean
+}

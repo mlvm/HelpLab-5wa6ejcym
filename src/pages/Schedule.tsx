@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Plus,
   ChevronLeft,
@@ -14,6 +15,10 @@ import {
   ClassFormValues,
 } from '@/components/classes/ClassFormDialog'
 import { toast } from 'sonner'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { DateRange } from 'react-day-picker'
+import { isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 const initialClasses = [
   {
@@ -61,6 +66,9 @@ const initialClasses = [
 export default function Schedule() {
   const [classes, setClasses] = useState(initialClasses)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [selectedInstructors, setSelectedInstructors] = useState<string[]>([])
 
   const handleCreateClass = (data: ClassFormValues) => {
     const newClass = {
@@ -74,6 +82,46 @@ export default function Schedule() {
     setClasses([...classes, newClass])
     toast.success('Nova turma criada com sucesso!')
   }
+
+  const toggleInstructor = (instructor: string) => {
+    setSelectedInstructors((prev) =>
+      prev.includes(instructor)
+        ? prev.filter((i) => i !== instructor)
+        : [...prev, instructor],
+    )
+  }
+
+  const toggleStatusFilter = (status: string) => {
+    setStatusFilter((prev) => (prev === status ? null : status))
+  }
+
+  const filteredClasses = classes.filter((cls) => {
+    // Status Filter
+    if (statusFilter && cls.status !== statusFilter) {
+      return false
+    }
+
+    // Instructor Filter
+    if (
+      selectedInstructors.length > 0 &&
+      !selectedInstructors.some((inst) => cls.instructor.includes(inst))
+    ) {
+      return false
+    }
+
+    // Date Range Filter
+    if (dateRange?.from) {
+      const clsDate = parseISO(cls.date)
+      const start = startOfDay(dateRange.from)
+      const end = endOfDay(dateRange.to || dateRange.from)
+
+      if (!isWithinInterval(clsDate, { start, end })) {
+        return false
+      }
+    }
+
+    return true
+  })
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -103,106 +151,118 @@ export default function Schedule() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Simplified Calendar List View for Mockup */}
+            {/* List View */}
             <div className="space-y-4 mt-4">
-              {classes.map((cls) => (
-                <Link
-                  to={`/class/${cls.id}`}
-                  key={cls.id}
-                  className="block group"
-                >
-                  <div className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-accent/10 transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="flex flex-col items-center justify-center bg-muted p-2 rounded w-16 text-center">
-                        <span className="text-xs font-semibold uppercase text-muted-foreground">
-                          Out
-                        </span>
-                        <span className="text-xl font-bold">
-                          {cls.date.split('-')[2]}
-                        </span>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                          {cls.title}
-                        </h3>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="h-3 w-3" /> {cls.time}
+              {filteredClasses.length > 0 ? (
+                filteredClasses.map((cls) => (
+                  <Link
+                    to={`/class/${cls.id}`}
+                    key={cls.id}
+                    className="block group"
+                  >
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:border-primary hover:bg-accent/10 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <div className="flex flex-col items-center justify-center bg-muted p-2 rounded w-16 text-center">
+                          <span className="text-xs font-semibold uppercase text-muted-foreground">
+                            Out
                           </span>
-                          <span>• Instrutor: {cls.instructor}</span>
+                          <span className="text-xl font-bold">
+                            {cls.date.split('-')[2]}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                            {cls.title}
+                          </h3>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className="h-3 w-3" /> {cls.time}
+                            </span>
+                            <span>• Instrutor: {cls.instructor}</span>
+                          </div>
                         </div>
                       </div>
+                      <div>
+                        <Badge
+                          variant={
+                            cls.status === 'Lotada'
+                              ? 'destructive'
+                              : cls.status === 'Aberta'
+                                ? 'default'
+                                : cls.status === 'Planejada'
+                                  ? 'secondary'
+                                  : 'outline'
+                          }
+                        >
+                          {cls.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      <Badge
-                        variant={
-                          cls.status === 'Lotada'
-                            ? 'destructive'
-                            : cls.status === 'Aberta'
-                              ? 'default'
-                              : cls.status === 'Planejada'
-                                ? 'secondary'
-                                : 'outline'
-                        }
-                      >
-                        {cls.status}
-                      </Badge>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma turma encontrada com os filtros selecionados.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-4 lg:col-span-3">
+        <Card className="md:col-span-4 lg:col-span-3 h-fit">
           <CardHeader>
             <CardTitle className="text-base">Filtros</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Período</label>
+              <DateRangePicker
+                date={dateRange}
+                setDate={setDateRange}
+                className="w-full"
+              />
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
               <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer hover:bg-secondary"
-                >
-                  Abertas
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer hover:bg-secondary"
-                >
-                  Lotadas
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer hover:bg-secondary"
-                >
-                  Planejadas
-                </Badge>
+                {['Aberta', 'Lotada', 'Planejada'].map((status) => (
+                  <Badge
+                    key={status}
+                    variant={statusFilter === status ? 'default' : 'outline'}
+                    className="cursor-pointer hover:bg-secondary"
+                    onClick={() => toggleStatusFilter(status)}
+                  >
+                    {status === 'Aberta'
+                      ? 'Abertas'
+                      : status === 'Lotada'
+                        ? 'Lotadas'
+                        : 'Planejadas'}
+                  </Badge>
+                ))}
               </div>
             </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Instrutor</label>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id="inst1"
-                    className="rounded border-gray-300"
+                    checked={selectedInstructors.includes('Dr. Silva')}
+                    onCheckedChange={() => toggleInstructor('Dr. Silva')}
                   />
-                  <label htmlFor="inst1" className="text-sm">
+                  <label htmlFor="inst1" className="text-sm cursor-pointer">
                     Dr. Silva
                   </label>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id="inst2"
-                    className="rounded border-gray-300"
+                    checked={selectedInstructors.includes('Enf. Maria')}
+                    onCheckedChange={() => toggleInstructor('Enf. Maria')}
                   />
-                  <label htmlFor="inst2" className="text-sm">
+                  <label htmlFor="inst2" className="text-sm cursor-pointer">
                     Enf. Maria
                   </label>
                 </div>
