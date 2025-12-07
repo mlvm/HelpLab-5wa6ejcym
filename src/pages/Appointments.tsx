@@ -14,7 +14,6 @@ import {
   Search,
   Plus,
   MoreHorizontal,
-  Eye,
   Pencil,
   Trash2,
   Tag,
@@ -359,9 +358,7 @@ export default function Appointments() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditClick(apt)}>
-                          <Eye className="mr-2 h-4 w-4" /> Visualizar
-                        </DropdownMenuItem>
+                        {/* Visualizar Removed as per request */}
                         <DropdownMenuItem onClick={() => handleEditClick(apt)}>
                           <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>

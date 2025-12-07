@@ -11,7 +11,14 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Search, Plus, MoreHorizontal } from 'lucide-react'
+import {
+  Search,
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Ban,
+  CheckCircle,
+} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -209,7 +216,7 @@ export default function Trainings() {
                           <DropdownMenuItem
                             onClick={() => handleEditClick(training)}
                           >
-                            Editar
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className={
@@ -221,9 +228,15 @@ export default function Trainings() {
                               handleStatusChange(training.id, training.status)
                             }
                           >
-                            {training.status === 'Ativo'
-                              ? 'Inativar'
-                              : 'Ativar'}
+                            {training.status === 'Ativo' ? (
+                              <>
+                                <Ban className="mr-2 h-4 w-4" /> Inativar
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="mr-2 h-4 w-4" /> Ativar
+                              </>
+                            )}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

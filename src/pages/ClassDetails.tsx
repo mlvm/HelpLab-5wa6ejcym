@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { AttendanceDialog } from '@/components/classes/AttendanceDialog'
+import { PrintAttendanceDialog } from '@/components/classes/PrintAttendanceDialog'
 import { Student } from '@/types/class-types'
 import { toast } from 'sonner'
 import { useClassStatus } from '@/contexts/ClassStatusContext'
@@ -58,6 +59,7 @@ const initialStudents: Student[] = [
 export default function ClassDetails() {
   const { id } = useParams()
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
+  const [isPrintOpen, setIsPrintOpen] = useState(false)
   const [students, setStudents] = useState<Student[]>(initialStudents)
   const [classStatus, setClassStatus] = useState<string>('Lotada')
   const [maxParticipants] = useState<number>(30) // Mocked capacity
@@ -123,7 +125,7 @@ export default function ClassDetails() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setIsPrintOpen(true)}>
             <Printer className="mr-2 h-4 w-4" /> Lista de Presença
           </Button>
           <Button variant="outline">
@@ -253,6 +255,15 @@ export default function ClassDetails() {
         className="Biossegurança Básica - Turma A"
         students={students}
         onSave={handleAttendanceSave}
+      />
+
+      <PrintAttendanceDialog
+        open={isPrintOpen}
+        onOpenChange={setIsPrintOpen}
+        className="Biossegurança Básica - Turma A"
+        students={students}
+        date="15/10/2024"
+        instructor="Dr. Silva"
       />
     </div>
   )

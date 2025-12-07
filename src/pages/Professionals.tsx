@@ -18,7 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Plus, FileUp, Download, MoreHorizontal } from 'lucide-react'
+import {
+  Search,
+  Plus,
+  FileUp,
+  Download,
+  MoreHorizontal,
+  Pencil,
+  Ban,
+  CheckCircle,
+} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -120,6 +129,7 @@ export default function Professionals() {
     setDialogOpen(true)
   }
 
+  // View click handler kept for dialog purposes but not for menu
   const handleViewClick = (professional: Professional) => {
     setDialogMode('view')
     setSelectedProfessional(professional)
@@ -298,14 +308,9 @@ export default function Professionals() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
-                            onClick={() => handleViewClick(professional)}
-                          >
-                            Visualizar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
                             onClick={() => handleEditClick(professional)}
                           >
-                            Editar
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className={
@@ -320,9 +325,15 @@ export default function Professionals() {
                               )
                             }
                           >
-                            {professional.status === 'Ativo'
-                              ? 'Inativar'
-                              : 'Ativar'}
+                            {professional.status === 'Ativo' ? (
+                              <>
+                                <Ban className="mr-2 h-4 w-4" /> Inativar
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="mr-2 h-4 w-4" /> Ativar
+                              </>
+                            )}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
