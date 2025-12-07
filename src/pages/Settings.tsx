@@ -37,6 +37,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
   megaApi,
   AIProvider,
   UsageLimits,
@@ -90,8 +98,22 @@ export default function Settings() {
     'Você é um assistente útil e amigável.',
   )
   const [limits, setLimits] = useState<Record<AIProvider, UsageLimits>>({
-    chatgpt: { monthlyInteractions: 1000, tokensPerResponse: 4096 },
-    gemini: { monthlyInteractions: 1000, tokensPerResponse: 4096 },
+    chatgpt: {
+      monthlyInteractions: 1000,
+      tokensPerResponse: 4096,
+      averageInputTokens: 500,
+      averageOutputTokens: 300,
+      costPerMillionInputTokens: 0.15,
+      costPerMillionOutputTokens: 0.6,
+    },
+    gemini: {
+      monthlyInteractions: 1000,
+      tokensPerResponse: 4096,
+      averageInputTokens: 500,
+      averageOutputTokens: 300,
+      costPerMillionInputTokens: 0.075,
+      costPerMillionOutputTokens: 0.3,
+    },
   })
 
   const [isLoading, setIsLoading] = useState(false)
@@ -222,13 +244,23 @@ export default function Settings() {
     field: keyof UsageLimits,
     value: string,
   ) => {
+    const numValue = parseFloat(value)
     setLimits((prev) => ({
       ...prev,
       [provider]: {
         ...prev[provider],
-        [field]: parseInt(value) || 0,
+        [field]: isNaN(numValue) ? 0 : numValue,
       },
     }))
+  }
+
+  const calculateMonthlyCost = (provider: AIProvider) => {
+    const l = limits[provider]
+    const totalInput = l.monthlyInteractions * l.averageInputTokens
+    const totalOutput = l.monthlyInteractions * l.averageOutputTokens
+    const costInput = (totalInput / 1000000) * l.costPerMillionInputTokens
+    const costOutput = (totalOutput / 1000000) * l.costPerMillionOutputTokens
+    return (costInput + costOutput).toFixed(2)
   }
 
   const activeModelDesc =
@@ -478,88 +510,266 @@ export default function Settings() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Gauge className="h-5 w-5 text-primary" />
-                <CardTitle>Limites de Uso</CardTitle>
+                <CardTitle>Estimativa de Custos e Limites</CardTitle>
               </div>
               <CardDescription>
-                Controle custos definindo limites para cada provedor.
+                Configure os limites e valores para estimar o custo mensal de
+                operação.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* ChatGPT Limits */}
-                <div className="space-y-4 border p-4 rounded-md">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <Shield className="h-4 w-4 text-green-600" /> ChatGPT
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[250px]">Parâmetro</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-green-600" /> ChatGPT
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-2">
+                        <Cpu className="h-4 w-4 text-purple-600" /> Gemini
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">
                       Limite Mensal (Interações)
-                    </Label>
-                    <Input
-                      type="number"
-                      value={limits.chatgpt.monthlyInteractions}
-                      onChange={(e) =>
-                        handleLimitChange(
-                          'chatgpt',
-                          'monthlyInteractions',
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Tokens por Resposta</Label>
-                    <Input
-                      type="number"
-                      value={limits.chatgpt.tokensPerResponse}
-                      onChange={(e) =>
-                        handleLimitChange(
-                          'chatgpt',
-                          'tokensPerResponse',
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Gemini Limits */}
-                <div className="space-y-4 border p-4 rounded-md">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <Cpu className="h-4 w-4 text-purple-600" /> Gemini
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">
-                      Limite Mensal (Interações)
-                    </Label>
-                    <Input
-                      type="number"
-                      value={limits.gemini.monthlyInteractions}
-                      onChange={(e) =>
-                        handleLimitChange(
-                          'gemini',
-                          'monthlyInteractions',
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Tokens por Resposta</Label>
-                    <Input
-                      type="number"
-                      value={limits.gemini.tokensPerResponse}
-                      onChange={(e) =>
-                        handleLimitChange(
-                          'gemini',
-                          'tokensPerResponse',
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={limits.chatgpt.monthlyInteractions}
+                        onChange={(e) =>
+                          handleLimitChange(
+                            'chatgpt',
+                            'monthlyInteractions',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={limits.gemini.monthlyInteractions}
+                        onChange={(e) =>
+                          handleLimitChange(
+                            'gemini',
+                            'monthlyInteractions',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      Média de Tokens de Entrada
+                      <span className="block text-xs text-muted-foreground font-normal">
+                        Por interação
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={limits.chatgpt.averageInputTokens}
+                        onChange={(e) =>
+                          handleLimitChange(
+                            'chatgpt',
+                            'averageInputTokens',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={limits.gemini.averageInputTokens}
+                        onChange={(e) =>
+                          handleLimitChange(
+                            'gemini',
+                            'averageInputTokens',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      Média de Tokens de Saída
+                      <span className="block text-xs text-muted-foreground font-normal">
+                        Por interação
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={limits.chatgpt.averageOutputTokens}
+                        onChange={(e) =>
+                          handleLimitChange(
+                            'chatgpt',
+                            'averageOutputTokens',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={limits.gemini.averageOutputTokens}
+                        onChange={(e) =>
+                          handleLimitChange(
+                            'gemini',
+                            'averageOutputTokens',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      Custo por 1M Tokens Entrada (USD)
+                    </TableCell>
+                    <TableCell>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.001"
+                          className="pl-7"
+                          value={limits.chatgpt.costPerMillionInputTokens}
+                          onChange={(e) =>
+                            handleLimitChange(
+                              'chatgpt',
+                              'costPerMillionInputTokens',
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.001"
+                          className="pl-7"
+                          value={limits.gemini.costPerMillionInputTokens}
+                          onChange={(e) =>
+                            handleLimitChange(
+                              'gemini',
+                              'costPerMillionInputTokens',
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      Custo por 1M Tokens Saída (USD)
+                    </TableCell>
+                    <TableCell>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.001"
+                          className="pl-7"
+                          value={limits.chatgpt.costPerMillionOutputTokens}
+                          onChange={(e) =>
+                            handleLimitChange(
+                              'chatgpt',
+                              'costPerMillionOutputTokens',
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.001"
+                          className="pl-7"
+                          value={limits.gemini.costPerMillionOutputTokens}
+                          onChange={(e) =>
+                            handleLimitChange(
+                              'gemini',
+                              'costPerMillionOutputTokens',
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-bold">
+                      Custo Mensal Estimado
+                    </TableCell>
+                    <TableCell className="font-bold text-green-700 text-lg">
+                      ${calculateMonthlyCost('chatgpt')}
+                    </TableCell>
+                    <TableCell className="font-bold text-purple-700 text-lg">
+                      ${calculateMonthlyCost('gemini')}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="text-muted-foreground text-xs">
+                      Limite Técnico (Tokens/Resp)
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        className="h-8 text-xs"
+                        value={limits.chatgpt.tokensPerResponse}
+                        onChange={(e) =>
+                          handleLimitChange(
+                            'chatgpt',
+                            'tokensPerResponse',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        className="h-8 text-xs"
+                        value={limits.gemini.tokensPerResponse}
+                        onChange={(e) =>
+                          handleLimitChange(
+                            'gemini',
+                            'tokensPerResponse',
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
 

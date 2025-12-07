@@ -12,6 +12,10 @@ export type AIProvider = 'chatgpt' | 'gemini'
 export interface UsageLimits {
   monthlyInteractions: number
   tokensPerResponse: number
+  averageInputTokens: number
+  averageOutputTokens: number
+  costPerMillionInputTokens: number
+  costPerMillionOutputTokens: number
 }
 
 export interface TestResult {
@@ -32,8 +36,22 @@ class MegaApiService {
   private aiModel: string = 'gpt-4o-mini'
   private systemPrompt: string = ''
   private limits: Record<AIProvider, UsageLimits> = {
-    chatgpt: { monthlyInteractions: 1000, tokensPerResponse: 4096 },
-    gemini: { monthlyInteractions: 1000, tokensPerResponse: 4096 },
+    chatgpt: {
+      monthlyInteractions: 1000,
+      tokensPerResponse: 4096,
+      averageInputTokens: 500,
+      averageOutputTokens: 300,
+      costPerMillionInputTokens: 0.15,
+      costPerMillionOutputTokens: 0.6,
+    },
+    gemini: {
+      monthlyInteractions: 1000,
+      tokensPerResponse: 4096,
+      averageInputTokens: 500,
+      averageOutputTokens: 300,
+      costPerMillionInputTokens: 0.075,
+      costPerMillionOutputTokens: 0.3,
+    },
   }
 
   private isConnected = false
@@ -62,7 +80,14 @@ class MegaApiService {
     if (storedPrompt) this.systemPrompt = storedPrompt
     if (storedLimits) {
       try {
-        this.limits = JSON.parse(storedLimits)
+        const parsed = JSON.parse(storedLimits)
+        // Deep merge to ensure new fields are present if old config exists
+        if (parsed.chatgpt) {
+          this.limits.chatgpt = { ...this.limits.chatgpt, ...parsed.chatgpt }
+        }
+        if (parsed.gemini) {
+          this.limits.gemini = { ...this.limits.gemini, ...parsed.gemini }
+        }
       } catch (e) {
         console.error('Failed to parse usage limits', e)
       }
