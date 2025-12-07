@@ -1,4 +1,4 @@
-import { User, Calendar, ExternalLink, FileText } from 'lucide-react'
+import { User, Calendar, ExternalLink, FileText, Server } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -32,6 +32,39 @@ export function WhatsappContextPanel({
     <div className="md:col-span-3 flex flex-col gap-4 h-full border-l pl-4">
       <ScrollArea className="h-full -mr-3 pr-3">
         <div className="space-y-6">
+          {/* AI Metadata Header */}
+          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs space-y-2">
+            <h4 className="font-semibold text-slate-700 flex items-center gap-1.5">
+              <Server className="h-3.5 w-3.5" /> Metadados da IA
+            </h4>
+            <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+              <div>
+                <span className="block font-medium text-foreground">
+                  Mega API
+                </span>
+                <span>Status: Ativo</span>
+              </div>
+              <div>
+                <span className="block font-medium text-foreground">
+                  Latency
+                </span>
+                <span>~240ms</span>
+              </div>
+              <div>
+                <span className="block font-medium text-foreground">
+                  Confidence
+                </span>
+                <span>98.5%</span>
+              </div>
+              <div>
+                <span className="block font-medium text-foreground">Model</span>
+                <span>v3.5-turbo</span>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Profissional Data */}
           {conversation ? (
             <>
@@ -160,11 +193,11 @@ export function WhatsappContextPanel({
                 />
               </div>
 
-              {/* Metadata */}
+              {/* Context Metadata */}
               <div className="pt-4 text-[10px] text-muted-foreground space-y-1">
                 <p>ID Conversa: {conversation.id}</p>
                 <p>Origem: WhatsApp API</p>
-                <p>Mensagens: {messageCount}</p>
+                <p>Mensagens Processadas: {messageCount}</p>
               </div>
             </>
           ) : (

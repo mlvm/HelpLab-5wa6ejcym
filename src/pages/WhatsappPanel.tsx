@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Search } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Search, Loader2, Wifi, WifiOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,35 +11,129 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { useToast } from '@/hooks/use-toast'
 
 import {
-  MOCK_CONVERSATIONS,
-  MOCK_MESSAGES,
-  MOCK_PROFESSIONALS,
-  MOCK_APPOINTMENTS,
+  WhatsappConversation,
+  WhatsappMessage,
+  MOCK_PROFESSIONALS, // Keep static pro data for now
+  MOCK_APPOINTMENTS, // Keep static apt data for now
+  SEED_PROFESSIONALS,
+  SEED_APPOINTMENTS,
 } from './WhatsappPanel.data'
 import { WhatsappConversationList } from '@/components/whatsapp/WhatsappConversationList'
 import { WhatsappChatWindow } from '@/components/whatsapp/WhatsappChatWindow'
 import { WhatsappContextPanel } from '@/components/whatsapp/WhatsappContextPanel'
+import { megaApi } from '@/services/mega-api'
 
 export default function WhatsappPanel() {
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null)
   const [notes, setNotes] = useState('')
-  const [isWhatsappConnected, setIsWhatsappConnected] = useState(true)
+  const [isWhatsappConnected, setIsWhatsappConnected] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [conversations, setConversations] = useState<WhatsappConversation[]>([])
+  const [messages, setMessages] = useState<WhatsappMessage[]>([])
+  const { toast } = useToast()
 
-  // Get Current Data
-  const selectedConversation = MOCK_CONVERSATIONS.find(
+  // Initial Load & Connection
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // Simulate auth with API Key
+        await megaApi.connect('MEGA_API_KEY_SECRET_123')
+        setIsWhatsappConnected(true)
+        const convs = await megaApi.getConversations()
+        setConversations(convs)
+      } catch (error) {
+        console.error('Failed to connect to Mega API', error)
+        toast({
+          variant: 'destructive',
+          title: 'Erro de Conexão',
+          description: 'Falha ao conectar com a Mega API.',
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    init()
+
+    // Subscribe to real-time updates
+    const unsubscribe = megaApi.subscribe(async () => {
+      const updatedConvs = await megaApi.getConversations()
+      setConversations(updatedConvs)
+
+      if (selectedConversationId) {
+        const updatedMsgs = await megaApi.getMessages(selectedConversationId)
+        setMessages(updatedMsgs)
+      }
+    })
+
+    return () => {
+      unsubscribe()
+      megaApi.disconnect()
+    }
+  }, [toast, selectedConversationId]) // Added selectedConversationId to dependency if we want immediate update on selection, but handled inside subscribe
+
+  // Fetch messages when conversation selected
+  useEffect(() => {
+    if (selectedConversationId) {
+      const fetchMsgs = async () => {
+        const msgs = await megaApi.getMessages(selectedConversationId)
+        setMessages(msgs)
+      }
+      fetchMsgs()
+    } else {
+      setMessages([])
+    }
+  }, [selectedConversationId])
+
+  const handleConnectionToggle = async (checked: boolean) => {
+    setIsLoading(true)
+    try {
+      if (checked) {
+        await megaApi.connect('API_KEY_RECONNECT')
+        setIsWhatsappConnected(true)
+        toast({
+          title: 'Conectado',
+          description: 'Serviço de IA Mega API ativo.',
+        })
+      } else {
+        await megaApi.disconnect()
+        setIsWhatsappConnected(false)
+        toast({
+          title: 'Desconectado',
+          description: 'Serviço de IA pausado.',
+        })
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSendMessage = async (text: string, sender: 'USUARIO' | 'BOT') => {
+    if (selectedConversationId) {
+      await megaApi.sendMessage(selectedConversationId, text, sender)
+      // Messages will update via subscription
+    }
+  }
+
+  // Get Current Data Helpers
+  const selectedConversation = conversations.find(
     (c) => c.id === selectedConversationId,
   )
-  const currentMessages = selectedConversationId
-    ? MOCK_MESSAGES[selectedConversationId] || []
-    : []
+
+  // Fallback to SEED/MOCK for professionals if not in dynamic list (mock implementation detail)
   const currentProfessional = selectedConversationId
-    ? MOCK_PROFESSIONALS[selectedConversationId]
+    ? SEED_PROFESSIONALS[selectedConversationId] ||
+      MOCK_PROFESSIONALS[selectedConversationId]
     : undefined
-  const currentAppointments = MOCK_APPOINTMENTS.filter(
+
+  const currentAppointments = SEED_APPOINTMENTS.filter(
     (a) => a.conversaId === selectedConversationId,
   )
 
@@ -49,33 +143,42 @@ export default function WhatsappPanel() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               Assistente de IA – WhatsApp
+              {isLoading && (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              )}
             </h1>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-4 bg-muted/30 px-3 py-1 rounded-full border">
               <Switch
                 id="whatsapp-status"
                 checked={isWhatsappConnected}
-                onCheckedChange={setIsWhatsappConnected}
+                onCheckedChange={handleConnectionToggle}
+                disabled={isLoading}
               />
               <Label
                 htmlFor="whatsapp-status"
                 className={cn(
-                  'text-sm font-medium transition-colors cursor-pointer',
+                  'text-sm font-medium transition-colors cursor-pointer flex items-center gap-2',
                   isWhatsappConnected
                     ? 'text-green-600'
                     : 'text-muted-foreground',
                 )}
               >
-                {isWhatsappConnected
-                  ? 'Conectado ao WhatsApp'
-                  : 'Desconectado ao WhatsApp'}
+                {isWhatsappConnected ? (
+                  <>
+                    <Wifi className="h-3 w-3" /> Conectado: Mega API
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3 w-3" /> Desconectado
+                  </>
+                )}
               </Label>
             </div>
           </div>
           <p className="text-muted-foreground mt-1">
-            Monitoramento das conversas entre o bot HelpLab e os profissionais
-            via WhatsApp
+            Monitoramento em tempo real das conversas e raciocínio da IA.
           </p>
         </div>
 
@@ -106,7 +209,7 @@ export default function WhatsappPanel() {
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 min-h-0 overflow-hidden">
         {/* Left Column: Conversation List */}
         <WhatsappConversationList
-          conversations={MOCK_CONVERSATIONS}
+          conversations={conversations}
           selectedId={selectedConversationId}
           onSelect={setSelectedConversationId}
         />
@@ -114,8 +217,10 @@ export default function WhatsappPanel() {
         {/* Center Column: Chat Window */}
         <WhatsappChatWindow
           conversation={selectedConversation}
-          messages={currentMessages}
+          messages={messages}
           professional={currentProfessional}
+          onSendMessage={handleSendMessage}
+          isProcessing={isLoading}
         />
 
         {/* Right Column: Context Panel */}
@@ -123,7 +228,7 @@ export default function WhatsappPanel() {
           conversation={selectedConversation}
           professional={currentProfessional}
           appointments={currentAppointments}
-          messageCount={currentMessages.length}
+          messageCount={messages.length}
           notes={notes}
           setNotes={setNotes}
         />

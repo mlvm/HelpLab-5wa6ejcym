@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Calendar as CalendarIcon,
   X,
+  Circle,
 } from 'lucide-react'
 import {
   format,
@@ -69,7 +70,7 @@ export function WhatsappConversationList({
 
       // 3. Date Range Filter
       let matchesDate = true
-      if (dateRange?.from) {
+      if (dateRange?.from && conv.ultimaMensagemEm) {
         const convDate = parseISO(conv.ultimaMensagemEm)
         const start = startOfDay(dateRange.from)
         const end = endOfDay(dateRange.to || dateRange.from)
@@ -97,11 +98,11 @@ export function WhatsappConversationList({
   const getStatusLabel = (status: WhatsappConversationStatus) => {
     switch (status) {
       case 'AGENDAMENTO_CONCLUIDO':
-        return 'Agendamento Concluído'
+        return 'Concluído'
       case 'ERRO_FLUXO':
         return 'Erro no Fluxo'
       case 'SEM_AGENDAMENTO':
-        return 'Sem Agendamento'
+        return 'Pendente'
       default:
         return 'Outro'
     }
@@ -112,6 +113,9 @@ export function WhatsappConversationList({
       <div className="flex flex-col gap-2">
         <h3 className="font-semibold text-sm flex items-center gap-2">
           <MessageSquare className="h-4 w-4" /> Conversas Recentes
+          <Badge variant="secondary" className="ml-auto text-xs">
+            {filteredConversations.length}
+          </Badge>
         </h3>
 
         {/* Search Input */}
@@ -200,17 +204,22 @@ export function WhatsappConversationList({
               key={conv.id}
               onClick={() => onSelect(conv.id)}
               className={cn(
-                'flex flex-col gap-1 p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50',
+                'flex flex-col gap-1 p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50 relative',
                 selectedId === conv.id
                   ? 'bg-accent border-primary/50 shadow-sm'
                   : 'bg-card',
               )}
             >
+              {/* Unread Indicator */}
+              {conv.unreadCount && conv.unreadCount > 0 ? (
+                <div className="absolute right-2 top-2 h-2 w-2 bg-blue-500 rounded-full animate-pulse" />
+              ) : null}
+
               <div className="flex justify-between items-start">
-                <span className="font-medium text-sm truncate">
+                <span className="font-medium text-sm truncate pr-4">
                   {conv.profissionalNome || 'Número desconhecido'}
                 </span>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                   {new Date(conv.ultimaMensagemEm).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -220,7 +229,7 @@ export function WhatsappConversationList({
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Phone className="h-3 w-3" /> {conv.telefone}
               </span>
-              <p className="text-xs text-muted-foreground/80 truncate mt-1">
+              <p className="text-xs text-muted-foreground/80 truncate mt-1 font-normal">
                 {conv.ultimaMensagemPreview}
               </p>
               <div className="flex gap-2 mt-2">
@@ -234,8 +243,9 @@ export function WhatsappConversationList({
             </div>
           ))}
           {filteredConversations.length === 0 && (
-            <div className="text-center p-4 text-sm text-muted-foreground">
-              Nenhuma conversa encontrada.
+            <div className="text-center p-4 text-sm text-muted-foreground flex flex-col items-center gap-2">
+              <Search className="h-8 w-8 opacity-20" />
+              <p>Nenhuma conversa encontrada.</p>
             </div>
           )}
         </div>
