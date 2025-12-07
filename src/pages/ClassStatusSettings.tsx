@@ -76,7 +76,7 @@ export default function ClassStatusSettings() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Status</h1>
           <p className="text-muted-foreground">
-            Gerencie os status personalizados para acompanhamento das turmas.
+            Gerencie os status personalizados para agendamentos e turmas.
           </p>
         </div>
         <Button onClick={handleAddClick}>
@@ -164,7 +164,8 @@ export default function ClassStatusSettings() {
             <AlertDialogTitle>Excluir Status</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir este status? Esta ação não pode ser
-              desfeita e pode afetar a visualização de turmas existentes.
+              desfeita e pode afetar a visualização de turmas ou agendamentos
+              existentes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

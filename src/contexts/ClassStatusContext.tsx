@@ -21,11 +21,22 @@ const ClassStatusContext = createContext<ClassStatusContextType | undefined>(
 )
 
 const DEFAULT_STATUSES: ClassStatus[] = [
+  // Class Statuses
   { id: 'planned', name: 'Planejada', color: '#64748b', isDefault: true },
   { id: 'open', name: 'Aberta', color: '#22c55e', isDefault: true },
   { id: 'full', name: 'Lotada', color: '#ef4444', isDefault: true },
   { id: 'cancelled', name: 'Cancelada', color: '#94a3b8', isDefault: true },
   { id: 'completed', name: 'Concluída', color: '#3b82f6', isDefault: true },
+  // Appointment Statuses
+  { id: 'scheduled', name: 'Agendado', color: '#0ea5e9', isDefault: true },
+  { id: 'confirmed', name: 'Confirmado', color: '#16a34a', isDefault: true },
+  { id: 'missed', name: 'Faltou', color: '#dc2626', isDefault: true },
+  {
+    id: 'rescheduled',
+    name: 'Reagendado',
+    color: '#eab308',
+    isDefault: true,
+  },
 ]
 
 export function ClassStatusProvider({ children }: { children: ReactNode }) {
