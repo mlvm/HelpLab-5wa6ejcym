@@ -1,9 +1,23 @@
 import { useState, useEffect } from 'react'
-import { Save, Loader2, Key, Server, Shield, Bot, Cpu, Zap } from 'lucide-react'
+import {
+  Save,
+  Loader2,
+  Key,
+  Server,
+  Shield,
+  Bot,
+  Cpu,
+  Zap,
+  Play,
+  Gauge,
+  AlertTriangle,
+  FileText,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Card,
   CardContent,
@@ -22,7 +36,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { megaApi, AIProvider } from '@/services/mega-api'
+import {
+  megaApi,
+  AIProvider,
+  UsageLimits,
+  TestResult,
+} from '@/services/mega-api'
 
 const CHATGPT_MODELS = [
   {
@@ -67,7 +86,17 @@ export default function Settings() {
   const [geminiApiKey, setGeminiApiKey] = useState('')
   const [aiProvider, setAiProvider] = useState<AIProvider>('chatgpt')
   const [aiModel, setAiModel] = useState('gpt-4o-mini')
+  const [systemPrompt, setSystemPrompt] = useState(
+    'Você é um assistente útil e amigável.',
+  )
+  const [limits, setLimits] = useState<Record<AIProvider, UsageLimits>>({
+    chatgpt: { monthlyInteractions: 1000, tokensPerResponse: 4096 },
+    gemini: { monthlyInteractions: 1000, tokensPerResponse: 4096 },
+  })
+
   const [isLoading, setIsLoading] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [testResults, setTestResults] = useState<TestResult[]>([])
   const { toast } = useToast()
 
   useEffect(() => {
@@ -78,6 +107,8 @@ export default function Settings() {
     if (creds.geminiApiKey) setGeminiApiKey(creds.geminiApiKey)
     if (creds.aiProvider) setAiProvider(creds.aiProvider)
     if (creds.aiModel) setAiModel(creds.aiModel)
+    if (creds.systemPrompt) setSystemPrompt(creds.systemPrompt)
+    if (creds.limits) setLimits(creds.limits)
   }, [])
 
   // Reset model when provider changes if current model doesn't belong to provider
@@ -135,6 +166,8 @@ export default function Settings() {
         geminiApiKey,
         aiProvider,
         aiModel,
+        systemPrompt,
+        limits,
       )
 
       toast({
@@ -150,6 +183,52 @@ export default function Settings() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleRunTest = async () => {
+    setIsTesting(true)
+    setTestResults([])
+    try {
+      // Need to save credentials to state first to use them in the test if they changed
+      await megaApi.updateConfiguration(
+        megaApiKey,
+        megaWebhookUrl,
+        openaiApiKey,
+        geminiApiKey,
+        aiProvider,
+        aiModel,
+        systemPrompt,
+        limits,
+      )
+      const results = await megaApi.runComparativeTest()
+      setTestResults(results)
+      toast({
+        title: 'Teste Concluído',
+        description: 'Métricas de performance atualizadas.',
+      })
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro no teste',
+        description: 'Não foi possível executar o teste comparativo.',
+      })
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  const handleLimitChange = (
+    provider: AIProvider,
+    field: keyof UsageLimits,
+    value: string,
+  ) => {
+    setLimits((prev) => ({
+      ...prev,
+      [provider]: {
+        ...prev[provider],
+        [field]: parseInt(value) || 0,
+      },
+    }))
   }
 
   const activeModelDesc =
@@ -367,6 +446,216 @@ export default function Settings() {
                 para novas mensagens.
               </p>
             </CardFooter>
+          </Card>
+
+          {/* System Prompt Configuration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <CardTitle>Instruções Iniciais (System Prompt)</CardTitle>
+              </div>
+              <CardDescription>
+                Defina o comportamento e a personalidade do assistente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                placeholder="Ex: Você é um assistente útil especializado em saúde pública..."
+                className="min-h-[120px]"
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Este prompt será enviado no início de cada conversa para guiar a
+                IA.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Usage Limits Configuration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Gauge className="h-5 w-5 text-primary" />
+                <CardTitle>Limites de Uso</CardTitle>
+              </div>
+              <CardDescription>
+                Controle custos definindo limites para cada provedor.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* ChatGPT Limits */}
+                <div className="space-y-4 border p-4 rounded-md">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <Shield className="h-4 w-4 text-green-600" /> ChatGPT
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">
+                      Limite Mensal (Interações)
+                    </Label>
+                    <Input
+                      type="number"
+                      value={limits.chatgpt.monthlyInteractions}
+                      onChange={(e) =>
+                        handleLimitChange(
+                          'chatgpt',
+                          'monthlyInteractions',
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Tokens por Resposta</Label>
+                    <Input
+                      type="number"
+                      value={limits.chatgpt.tokensPerResponse}
+                      onChange={(e) =>
+                        handleLimitChange(
+                          'chatgpt',
+                          'tokensPerResponse',
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Gemini Limits */}
+                <div className="space-y-4 border p-4 rounded-md">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <Cpu className="h-4 w-4 text-purple-600" /> Gemini
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">
+                      Limite Mensal (Interações)
+                    </Label>
+                    <Input
+                      type="number"
+                      value={limits.gemini.monthlyInteractions}
+                      onChange={(e) =>
+                        handleLimitChange(
+                          'gemini',
+                          'monthlyInteractions',
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Tokens por Resposta</Label>
+                    <Input
+                      type="number"
+                      value={limits.gemini.tokensPerResponse}
+                      onChange={(e) =>
+                        handleLimitChange(
+                          'gemini',
+                          'tokensPerResponse',
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Comparative Testing */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Play className="h-5 w-5 text-primary" />
+                  <CardTitle>Teste Comparativo de IA</CardTitle>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRunTest}
+                  disabled={isTesting}
+                >
+                  {isTesting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Play className="h-4 w-4 mr-2" />
+                  )}
+                  Executar Teste
+                </Button>
+              </div>
+              <CardDescription>
+                Compare latência e custo entre os provedores configurados.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {testResults.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {testResults.map((result) => (
+                      <div
+                        key={result.provider}
+                        className={
+                          'border rounded-lg p-4 ' +
+                          (result.success
+                            ? 'bg-green-50/50 border-green-200'
+                            : 'bg-red-50/50 border-red-200')
+                        }
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold uppercase flex items-center gap-2">
+                            {result.provider === 'gemini' ? (
+                              <Cpu className="h-4 w-4 text-purple-600" />
+                            ) : (
+                              <Shield className="h-4 w-4 text-green-600" />
+                            )}
+                            {result.provider}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {result.model}
+                          </span>
+                        </div>
+                        {result.success ? (
+                          <div className="grid grid-cols-2 gap-4 mt-3">
+                            <div>
+                              <span className="text-xs text-muted-foreground block">
+                                Latência
+                              </span>
+                              <span className="font-mono font-medium">
+                                {result.latency}ms
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-xs text-muted-foreground block">
+                                Tokens Totais
+                              </span>
+                              <span className="font-mono font-medium">
+                                {result.tokens}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-red-600 mt-2 flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4" />
+                            {result.error || 'Falha desconhecida'}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Resultados baseados em um prompt padrão de teste: "Olá, isso
+                    é um teste de performance."
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground text-sm border-dashed border-2 rounded-lg">
+                  Clique em "Executar Teste" para comparar os modelos
+                  configurados.
+                </div>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
 

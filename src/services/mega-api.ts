@@ -5,12 +5,23 @@ import {
   SEED_MESSAGES,
   ChatSender,
 } from '@/pages/WhatsappPanel.data'
-import { supabaseEdgeFunctions } from './supabase-edge-functions'
-
-// Service simulating Mega API interactions with "Real" capabilities
-// Updated to integrate with Supabase Edge Functions for ChatGPT/Gemini responses
+import { supabaseEdgeFunctions, AIResponse } from './supabase-edge-functions'
 
 export type AIProvider = 'chatgpt' | 'gemini'
+
+export interface UsageLimits {
+  monthlyInteractions: number
+  tokensPerResponse: number
+}
+
+export interface TestResult {
+  provider: AIProvider
+  model: string
+  latency: number
+  tokens: number
+  success: boolean
+  error?: string
+}
 
 class MegaApiService {
   private apiKey: string | null = null
@@ -19,6 +30,11 @@ class MegaApiService {
   private geminiApiKey: string | null = null
   private aiProvider: AIProvider = 'chatgpt'
   private aiModel: string = 'gpt-4o-mini'
+  private systemPrompt: string = ''
+  private limits: Record<AIProvider, UsageLimits> = {
+    chatgpt: { monthlyInteractions: 1000, tokensPerResponse: 4096 },
+    gemini: { monthlyInteractions: 1000, tokensPerResponse: 4096 },
+  }
 
   private isConnected = false
   private conversations: WhatsappConversation[] = []
@@ -27,13 +43,15 @@ class MegaApiService {
   private pollingInterval: NodeJS.Timeout | null = null
 
   constructor() {
-    // Load persisted config (Simulating Supabase Secrets/Vault fetch)
+    // Load persisted config
     const storedKey = localStorage.getItem('mega_api_key')
     const storedUrl = localStorage.getItem('mega_webhook_url')
     const storedOpenAiKey = localStorage.getItem('openai_api_key')
     const storedGeminiKey = localStorage.getItem('gemini_api_key')
     const storedProvider = localStorage.getItem('ai_provider') as AIProvider
     const storedModel = localStorage.getItem('ai_model')
+    const storedPrompt = localStorage.getItem('ai_system_prompt')
+    const storedLimits = localStorage.getItem('ai_usage_limits')
 
     if (storedKey) this.apiKey = storedKey
     if (storedUrl) this.webhookUrl = storedUrl
@@ -41,8 +59,15 @@ class MegaApiService {
     if (storedGeminiKey) this.geminiApiKey = storedGeminiKey
     if (storedProvider) this.aiProvider = storedProvider
     if (storedModel) this.aiModel = storedModel
+    if (storedPrompt) this.systemPrompt = storedPrompt
+    if (storedLimits) {
+      try {
+        this.limits = JSON.parse(storedLimits)
+      } catch (e) {
+        console.error('Failed to parse usage limits', e)
+      }
+    }
 
-    // Initialize with seed data if empty (Simulating DB fetch)
     if (Object.keys(this.messages).length === 0) {
       this.messages = JSON.parse(JSON.stringify(SEED_MESSAGES))
       this.conversations = [...SEED_CONVERSATIONS]
@@ -58,8 +83,9 @@ class MegaApiService {
     geminiApiKey: string,
     aiProvider: AIProvider,
     aiModel: string,
+    systemPrompt: string,
+    limits: Record<AIProvider, UsageLimits>,
   ): Promise<boolean> {
-    // Simulate secure storage
     return new Promise((resolve) => {
       setTimeout(() => {
         this.apiKey = apiKey
@@ -68,6 +94,8 @@ class MegaApiService {
         this.geminiApiKey = geminiApiKey
         this.aiProvider = aiProvider
         this.aiModel = aiModel
+        this.systemPrompt = systemPrompt
+        this.limits = limits
 
         localStorage.setItem('mega_api_key', apiKey)
         localStorage.setItem('mega_webhook_url', webhookUrl)
@@ -75,6 +103,8 @@ class MegaApiService {
         localStorage.setItem('gemini_api_key', geminiApiKey)
         localStorage.setItem('ai_provider', aiProvider)
         localStorage.setItem('ai_model', aiModel)
+        localStorage.setItem('ai_system_prompt', systemPrompt)
+        localStorage.setItem('ai_usage_limits', JSON.stringify(limits))
 
         resolve(true)
       }, 800)
@@ -89,6 +119,8 @@ class MegaApiService {
       geminiApiKey: this.geminiApiKey,
       aiProvider: this.aiProvider,
       aiModel: this.aiModel,
+      systemPrompt: this.systemPrompt,
+      limits: this.limits,
     }
   }
 
@@ -96,7 +128,6 @@ class MegaApiService {
 
   async testConnection(key: string): Promise<boolean> {
     console.log('Testing connection with key:', key)
-    // Simulate an API Health Check call
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         if (key && key.length > 10) {
@@ -106,6 +137,69 @@ class MegaApiService {
         }
       }, 1500)
     })
+  }
+
+  async runComparativeTest(): Promise<TestResult[]> {
+    const results: TestResult[] = []
+    const testPrompt = 'Olá, isso é um teste de performance.'
+
+    // Test ChatGPT
+    if (this.openaiApiKey) {
+      try {
+        const response = await supabaseEdgeFunctions.invokeAI(
+          testPrompt,
+          'chatgpt',
+          'gpt-4o-mini', // Defaulting to mini for test
+          this.systemPrompt,
+        )
+        results.push({
+          provider: 'chatgpt',
+          model: 'gpt-4o-mini',
+          latency: response.latency,
+          tokens: response.usage.total_tokens,
+          success: true,
+        })
+      } catch (e) {
+        results.push({
+          provider: 'chatgpt',
+          model: 'gpt-4o-mini',
+          latency: 0,
+          tokens: 0,
+          success: false,
+          error: 'Connection Failed',
+        })
+      }
+    }
+
+    // Test Gemini
+    if (this.geminiApiKey) {
+      try {
+        const response = await supabaseEdgeFunctions.invokeAI(
+          testPrompt,
+          'gemini',
+          'gemini-1.5-flash', // Defaulting to flash for test
+          this.systemPrompt,
+        )
+        results.push({
+          provider: 'gemini',
+          model: 'gemini-1.5-flash',
+          latency: response.latency,
+          tokens: response.usage.total_tokens,
+          success: true,
+        })
+      } catch (e) {
+        results.push({
+          provider: 'gemini',
+          model: 'gemini-1.5-flash',
+          latency: 0,
+          tokens: 0,
+          success: false,
+          error: 'Connection Failed',
+        })
+      }
+    }
+
+    return results
   }
 
   async connect(): Promise<boolean> {
@@ -149,7 +243,6 @@ class MegaApiService {
 
     return new Promise((resolve) => {
       setTimeout(() => {
-        // Sort by last message date descending
         const sorted = [...this.conversations].sort(
           (a, b) =>
             new Date(b.ultimaMensagemEm).getTime() -
@@ -194,19 +287,16 @@ class MegaApiService {
           status: 'sent',
         }
 
-        // Update Store
         if (!this.messages[conversationId]) {
           this.messages[conversationId] = []
         }
         this.messages[conversationId].push(newMessage)
 
-        // Update Conversation Preview
         this.updateConversationPreview(conversationId, newMessage)
 
         this.notifyListeners()
         resolve(newMessage)
 
-        // Trigger AI Response via Edge Function if User sent message
         if (sender === 'USUARIO') {
           this.triggerBotResponse(conversationId, content)
         }
@@ -218,7 +308,6 @@ class MegaApiService {
     conversationId: string,
     userContent: string,
   ) {
-    // Check for appropriate API key based on provider
     const hasKey =
       this.aiProvider === 'gemini' ? !!this.geminiApiKey : !!this.openaiApiKey
 
@@ -229,13 +318,23 @@ class MegaApiService {
       return
     }
 
+    // Check Usage Limits
+    const limit = this.limits[this.aiProvider]
+    // Mock check: In a real app, we would check a DB counter.
+    // For now, we assume limits are okay unless mock condition is met.
+
     try {
-      // Call Supabase Edge Function to get AI response
       const aiResponse = await supabaseEdgeFunctions.invokeAI(
         userContent,
         this.aiProvider,
         this.aiModel,
+        this.systemPrompt,
       )
+
+      // Mock Token Limit Check
+      if (limit && aiResponse.usage.total_tokens > limit.tokensPerResponse) {
+        throw new Error('Token limit exceeded for this response.')
+      }
 
       const botMessage: WhatsappMessage = {
         id: `m${Date.now()}_bot`,
@@ -247,6 +346,14 @@ class MegaApiService {
           ? `${this.aiProvider === 'gemini' ? 'Gemini' : 'ChatGPT'}: ${aiResponse.action}`
           : 'Resposta Gerada',
         intencaoDetectada: `Modelo: ${aiResponse.model}`,
+        aiProvider: aiResponse.provider,
+        aiModel: aiResponse.model,
+        aiUsage: {
+          promptTokens: aiResponse.usage.prompt_tokens,
+          completionTokens: aiResponse.usage.completion_tokens,
+          totalTokens: aiResponse.usage.total_tokens,
+          latency: aiResponse.latency,
+        },
       }
 
       this.messages[conversationId].push(botMessage)
@@ -254,15 +361,14 @@ class MegaApiService {
       this.notifyListeners()
     } catch (error) {
       console.error('Failed to get AI response:', error)
-      // Fallback error message
       const errorMessage: WhatsappMessage = {
         id: `m${Date.now()}_err`,
         conversaId: conversationId,
         remetente: 'BOT',
         conteudo:
-          'Desculpe, estou enfrentando dificuldades técnicas para processar sua mensagem no momento.',
+          'Desculpe, não consegui processar sua mensagem devido a limites de uso ou erro técnico.',
         criadoEm: new Date().toISOString(),
-        acaoExecutadaPeloBot: 'Erro: Falha na Edge Function',
+        acaoExecutadaPeloBot: 'Erro: Falha na IA/Limites',
       }
       this.messages[conversationId].push(errorMessage)
       this.updateConversationPreview(conversationId, errorMessage)
@@ -292,7 +398,6 @@ class MegaApiService {
   private startWebhookSimulation() {
     if (this.pollingInterval) clearInterval(this.pollingInterval)
 
-    // Simulate incoming webhooks
     this.pollingInterval = setInterval(() => {
       if (this.isConnected && Math.random() > 0.85) {
         this.simulateIncomingWebhook()
@@ -323,8 +428,6 @@ class MegaApiService {
 
     this.sendMessage(randomConv.id, content, 'USUARIO').catch(console.error)
   }
-
-  // --- Subscription Pattern ---
 
   subscribe(listener: (data: any) => void) {
     this.listeners.push(listener)

@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   Send,
   User,
+  Cpu,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -73,7 +75,6 @@ export function WhatsappChatWindow({
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault()
     if (inputText.trim()) {
-      // Default to USUARIO to simulate AI testing as per user story requirements
       onSendMessage(inputText, 'USUARIO')
       setInputText('')
     }
@@ -144,6 +145,17 @@ export function WhatsappChatWindow({
                   ) : (
                     <>
                       <Bot className="h-3 w-3" /> Bot HelpLab
+                      {/* AI Model Indicator */}
+                      {msg.aiModel && (
+                        <span className="ml-1 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                          {msg.aiProvider === 'gemini' ? (
+                            <Cpu className="mr-1 h-2 w-2" />
+                          ) : (
+                            <Zap className="mr-1 h-2 w-2" />
+                          )}
+                          {msg.aiModel}
+                        </span>
+                      )}
                     </>
                   )}
                 </span>

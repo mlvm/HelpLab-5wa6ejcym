@@ -26,6 +26,14 @@ export interface WhatsappMessage {
   intencaoDetectada?: string
   acaoExecutadaPeloBot?: string
   status?: 'sent' | 'delivered' | 'read'
+  aiProvider?: string
+  aiModel?: string
+  aiUsage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+    latency: number
+  }
 }
 
 export type ProfissionalStatus = 'ATIVO' | 'INATIVO' | 'BLOQUEADO'
@@ -109,6 +117,8 @@ export const SEED_MESSAGES: Record<string, WhatsappMessage[]> = {
         Date.now() - 1000 * 60 * 60 * 2.5 + 1000,
       ).toISOString(),
       acaoExecutadaPeloBot: 'Ação: Consultar turmas disponíveis',
+      aiProvider: 'chatgpt',
+      aiModel: 'gpt-4o-mini',
     },
     {
       id: 'm3',
@@ -128,6 +138,8 @@ export const SEED_MESSAGES: Record<string, WhatsappMessage[]> = {
         Date.now() - 1000 * 60 * 60 * 2.4 + 1000,
       ).toISOString(),
       acaoExecutadaPeloBot: 'Ação: Criar agendamento',
+      aiProvider: 'chatgpt',
+      aiModel: 'gpt-4o-mini',
     },
     {
       id: 'm5',
@@ -154,6 +166,8 @@ export const SEED_MESSAGES: Record<string, WhatsappMessage[]> = {
       conteudo: 'Por favor, informe seu CPF para continuarmos.',
       criadoEm: new Date(Date.now() - 1000 * 60 * 39).toISOString(),
       acaoExecutadaPeloBot: 'Ação: Solicitar identificação',
+      aiProvider: 'gemini',
+      aiModel: 'gemini-pro',
     },
     {
       id: 'm8',
@@ -180,6 +194,8 @@ export const SEED_MESSAGES: Record<string, WhatsappMessage[]> = {
         'Olá! Sou o assistente virtual do HelpLab. Como posso ajudar você hoje?',
       criadoEm: new Date(Date.now() - 1000 * 60 * 60 * 24 + 1000).toISOString(),
       acaoExecutadaPeloBot: 'Ação: Saudação inicial',
+      aiProvider: 'chatgpt',
+      aiModel: 'gpt-3.5-turbo',
     },
     {
       id: 'm11',
