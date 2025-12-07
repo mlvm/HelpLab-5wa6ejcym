@@ -42,6 +42,7 @@ import { useClassStatus } from '@/contexts/ClassStatusContext'
 const formSchema = z.object({
   prof: z.string().min(2, 'Nome do profissional é obrigatório'),
   cpf: z.string().min(11, 'CPF inválido ou incompleto'),
+  whatsapp: z.string().optional(),
   unit: z.string().min(2, 'Unidade é obrigatória'),
   role: z.string().min(2, 'Cargo é obrigatório'),
   training: z.string().min(2, 'Nome do treinamento é obrigatório'),
@@ -74,6 +75,7 @@ export function AppointmentFormDialog({
     defaultValues: {
       prof: '',
       cpf: '',
+      whatsapp: '',
       unit: '',
       role: '',
       training: '',
@@ -101,7 +103,8 @@ export function AppointmentFormDialog({
 
         form.reset({
           prof: initialData.prof,
-          cpf: initialData.professional?.cpf || '', // Assuming linked data might be available
+          cpf: initialData.professional?.cpf || '',
+          whatsapp: initialData.professional?.whatsapp || '',
           unit: initialData.professional?.unit || '',
           role: initialData.professional?.role || '',
           training: initialData.training,
@@ -113,6 +116,7 @@ export function AppointmentFormDialog({
         form.reset({
           prof: '',
           cpf: '',
+          whatsapp: '',
           unit: '',
           role: '',
           training: '',
@@ -180,6 +184,20 @@ export function AppointmentFormDialog({
                           {...field}
                           disabled={mode === 'edit'} // Usually ID keys aren't editable
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="whatsapp"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>WhatsApp</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+55 11 99999-9999" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

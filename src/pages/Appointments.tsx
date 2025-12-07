@@ -51,6 +51,7 @@ import {
 } from '@/components/appointments/AppointmentFormDialog'
 import { toast } from 'sonner'
 import { db, Appointment } from '@/services/database'
+import { megaApi } from '@/services/mega-api'
 
 export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -103,25 +104,53 @@ export default function Appointments() {
     toast.success('Agendamento removido com sucesso.')
   }
 
-  const handleStatusChange = (id: number, newStatus: string) => {
+  const handleStatusChange = async (id: number, newStatus: string) => {
+    const appointment = appointments.find((a) => a.id === id)
+    const oldStatus = appointment?.status
+
     db.updateAppointment(id, { status: newStatus })
     refreshData()
     toast.success(`Status alterado para ${newStatus}`)
+
+    // Automatic Notification Logic
+    if (appointment && oldStatus === 'Agendado') {
+      if (newStatus === 'Confirmado' || newStatus === 'Cancelado') {
+        const prof = db
+          .getProfessionals()
+          .find((p) => p.id === appointment.professionalId)
+        if (prof && prof.whatsapp) {
+          try {
+            await megaApi.sendStatusUpdateNotification(
+              prof.whatsapp,
+              prof.name,
+              appointment.training,
+              appointment.date,
+              newStatus,
+            )
+            toast.success('Notificação WhatsApp enviada!')
+          } catch (error) {
+            console.error('Failed to send notification', error)
+            toast.error('Falha ao enviar notificação WhatsApp')
+          }
+        }
+      }
+    }
   }
 
-  const handleFormSubmit = (data: AppointmentFormValues) => {
+  const handleFormSubmit = async (data: AppointmentFormValues) => {
     try {
       if (dialogMode === 'add') {
         // 1. Create or Update Professional
         const prof = db.upsertProfessional({
           name: data.prof,
           cpf: data.cpf,
+          whatsapp: data.whatsapp,
           unit: data.unit,
           role: data.role,
         })
 
         // 2. Create Appointment
-        db.createAppointment({
+        const appt = db.createAppointment({
           professionalId: prof.id,
           profName: prof.name,
           training: data.training,
@@ -131,6 +160,21 @@ export default function Appointments() {
         })
 
         toast.success('Novo agendamento criado com sucesso.')
+
+        // Send Notification
+        if (prof.whatsapp) {
+          try {
+            await megaApi.sendAppointmentConfirmation(
+              prof.whatsapp,
+              prof.name,
+              appt.training,
+              appt.date,
+            )
+            toast.success('Confirmação enviada via WhatsApp!')
+          } catch (error) {
+            console.error('Failed to send notification', error)
+          }
+        }
       } else if (dialogMode === 'edit' && selectedAppointment) {
         // In edit mode, we typically update the appointment details
         // Ideally we might also update professional details if they changed
@@ -139,6 +183,7 @@ export default function Appointments() {
           db.upsertProfessional({
             name: data.prof,
             cpf: data.cpf,
+            whatsapp: data.whatsapp,
             unit: data.unit,
             role: data.role,
           })

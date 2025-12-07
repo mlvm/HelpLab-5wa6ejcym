@@ -33,6 +33,7 @@ import { domainApi, Unit } from '@/services/domain-api'
 const formSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   cpf: z.string().min(11, 'CPF deve ser válido'),
+  whatsapp: z.string().optional(),
   unit: z.string().min(1, 'Unidade é obrigatória'),
   role: z.string().min(2, 'Cargo é obrigatório'),
 })
@@ -61,6 +62,7 @@ export function ProfessionalFormDialog({
     defaultValues: {
       name: '',
       cpf: '',
+      whatsapp: '',
       unit: '',
       role: '',
     },
@@ -85,6 +87,7 @@ export function ProfessionalFormDialog({
         form.reset({
           name: '',
           cpf: '',
+          whatsapp: '',
           unit: '',
           role: '',
         })
@@ -92,6 +95,7 @@ export function ProfessionalFormDialog({
         form.reset({
           name: professional.name,
           cpf: professional.cpf,
+          whatsapp: professional.whatsapp || '',
           unit: professional.unit,
           role: professional.role,
         })
@@ -161,6 +165,25 @@ export function ProfessionalFormDialog({
                     <FormControl>
                       <Input
                         placeholder="000.000.000-00"
+                        disabled={isView}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage className="mt-1" />
+                  </div>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="whatsapp"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+                  <FormLabel className="text-right">WhatsApp</FormLabel>
+                  <div className="col-span-3">
+                    <FormControl>
+                      <Input
+                        placeholder="+55 11 99999-9999"
                         disabled={isView}
                         {...field}
                       />

@@ -4,6 +4,7 @@ export interface Professional {
   id: string
   name: string
   cpf: string
+  whatsapp?: string
   unit: string
   role: string
   createdAt: string
@@ -65,6 +66,7 @@ class DatabaseService {
         id: 'p1',
         name: 'Ana Clara',
         cpf: '123.456.789-00',
+        whatsapp: '+55 11 99999-0001',
         unit: 'Hospital Central',
         role: 'Enfermeira',
         createdAt: new Date().toISOString(),
@@ -74,6 +76,7 @@ class DatabaseService {
         id: 'p2',
         name: 'Carlos Eduardo',
         cpf: '987.654.321-11',
+        whatsapp: '+55 11 98888-0002',
         unit: 'UBS Centro',
         role: 'Técnico',
         createdAt: new Date().toISOString(),
@@ -126,6 +129,7 @@ class DatabaseService {
   upsertProfessional(data: {
     name: string
     cpf: string
+    whatsapp?: string
     unit: string
     role: string
   }): Professional {
@@ -139,6 +143,7 @@ class DatabaseService {
         name: data.name,
         unit: data.unit,
         role: data.role,
+        whatsapp: data.whatsapp || existing.whatsapp,
         updatedAt: now,
       }
       this.professionals = this.professionals.map((p) =>
@@ -152,6 +157,7 @@ class DatabaseService {
         id: `prof_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         name: data.name,
         cpf: data.cpf,
+        whatsapp: data.whatsapp,
         unit: data.unit,
         role: data.role,
         createdAt: now,

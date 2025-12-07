@@ -39,6 +39,7 @@ const INITIAL_DATA: Professional[] = [
     id: 1,
     name: 'Ana Clara Souza',
     cpf: '123.456.789-00',
+    whatsapp: '+55 11 99999-0001',
     unit: '2', // Hospital Geral
     role: 'Enfermeira',
     status: 'Ativo',
@@ -47,6 +48,7 @@ const INITIAL_DATA: Professional[] = [
     id: 2,
     name: 'Carlos Eduardo',
     cpf: '987.654.321-11',
+    whatsapp: '+55 11 98888-0002',
     unit: '3', // UBS Centro
     role: 'Técnico',
     status: 'Inativo',
@@ -55,6 +57,7 @@ const INITIAL_DATA: Professional[] = [
     id: 3,
     name: 'Fernanda Lima',
     cpf: '456.789.123-22',
+    whatsapp: '+55 11 97777-0003',
     unit: '1', // LACEN
     role: 'Biomédica',
     status: 'Ativo',
@@ -71,6 +74,7 @@ const INITIAL_DATA: Professional[] = [
     id: 5,
     name: 'Juliana Paes',
     cpf: '741.852.963-44',
+    whatsapp: '+55 11 96666-0005',
     unit: '5', // UBS Norte
     role: 'Enfermeira',
     status: 'Ativo',

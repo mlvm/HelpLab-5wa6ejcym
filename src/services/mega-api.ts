@@ -290,6 +290,73 @@ class MegaApiService {
 
   // --- Messaging & AI ---
 
+  async findOrCreateConversation(
+    phoneNumber: string,
+    contactName: string,
+  ): Promise<string> {
+    const existing = this.conversations.find((c) => c.telefone === phoneNumber)
+    if (existing) return existing.id
+
+    const newId = `c_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
+    const newConv: WhatsappConversation = {
+      id: newId,
+      telefone: phoneNumber,
+      profissionalNome: contactName,
+      ultimaMensagemPreview: '',
+      ultimaMensagemEm: new Date().toISOString(),
+      status: 'OUTRO', // Default status
+      origem: 'WHATSAPP',
+      unreadCount: 0,
+    }
+    this.conversations.unshift(newConv)
+    this.messages[newId] = []
+    this.notifyListeners()
+    return newId
+  }
+
+  async sendAppointmentConfirmation(
+    phoneNumber: string,
+    professionalName: string,
+    training: string,
+    date: string,
+  ) {
+    if (!phoneNumber) return
+
+    // Ensure connection is simulated if not explicit
+    if (!this.isConnected) {
+      // Auto-connect for this action for demo purposes if not connected
+      this.isConnected = true
+    }
+
+    const conversationId = await this.findOrCreateConversation(
+      phoneNumber,
+      professionalName,
+    )
+    const message = `Olá ${professionalName}, seu agendamento para o treinamento "${training}" no dia ${date} foi confirmado com sucesso!`
+    await this.sendMessage(conversationId, message, 'BOT')
+  }
+
+  async sendStatusUpdateNotification(
+    phoneNumber: string,
+    professionalName: string,
+    training: string,
+    date: string,
+    status: string,
+  ) {
+    if (!phoneNumber) return
+
+    if (!this.isConnected) {
+      this.isConnected = true
+    }
+
+    const conversationId = await this.findOrCreateConversation(
+      phoneNumber,
+      professionalName,
+    )
+    const message = `Olá ${professionalName}, o status do seu agendamento para "${training}" (${date}) foi alterado para: ${status}.`
+    await this.sendMessage(conversationId, message, 'BOT')
+  }
+
   async sendMessage(
     conversationId: string,
     content: string,
@@ -378,6 +445,10 @@ class MegaApiService {
             channel: 'WhatsApp',
             status: 'Agendado',
           })
+
+          // Send confirmation via WhatsApp logic is inherent here as this IS the chat bot response
+          // But we can also trigger the formal notification method if we wanted to enforce template
+          // For now, the bot response confirms it.
 
           finalBotText += `\n\n✅ Agendamento #${appt.id} confirmado para ${appt.prof} no dia ${appt.date}!`
           finalAction = 'Agendamento Criado no Banco de Dados'
