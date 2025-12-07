@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Table,
   TableBody,
@@ -50,45 +50,10 @@ import {
   AppointmentFormValues,
 } from '@/components/appointments/AppointmentFormDialog'
 import { toast } from 'sonner'
-
-// Updated mock data structure removing classStatus and using unified statuses
-const initialAppointments = [
-  {
-    id: 1,
-    prof: 'Ana Clara',
-    training: 'Biossegurança',
-    date: '15/10/2024',
-    channel: 'WhatsApp',
-    status: 'Confirmado',
-  },
-  {
-    id: 2,
-    prof: 'Carlos Eduardo',
-    training: 'Biossegurança',
-    date: '15/10/2024',
-    channel: 'WhatsApp',
-    status: 'Confirmado',
-  },
-  {
-    id: 3,
-    prof: 'Roberto Alves',
-    training: 'Primeiros Socorros',
-    date: '16/10/2024',
-    channel: 'WhatsApp',
-    status: 'Cancelada',
-  },
-  {
-    id: 4,
-    prof: 'Fernanda Lima',
-    training: 'Biossegurança',
-    date: '15/10/2024',
-    channel: 'WhatsApp',
-    status: 'Faltou',
-  },
-]
+import { db, Appointment } from '@/services/database'
 
 export default function Appointments() {
-  const [appointments, setAppointments] = useState(initialAppointments)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined)
   const { statuses, getStatusColor } = useClassStatus()
@@ -99,60 +64,105 @@ export default function Appointments() {
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add')
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null)
 
+  // Load appointments from mock DB
+  const refreshData = () => {
+    setAppointments(db.getAppointments())
+  }
+
+  useEffect(() => {
+    refreshData()
+
+    // Listen to changes in other tabs (simulated by interval or event)
+    const interval = setInterval(refreshData, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
   const handleCreateClick = () => {
     setDialogMode('add')
     setSelectedAppointment(null)
     setDialogOpen(true)
   }
 
-  const handleEditClick = (appointment: any) => {
+  const handleEditClick = (appointment: Appointment) => {
+    // We need to fetch the professional details to populate the form
+    const professional = db
+      .getProfessionals()
+      .find((p) => p.id === appointment.professionalId)
+
     setDialogMode('edit')
-    setSelectedAppointment(appointment)
+    setSelectedAppointment({
+      ...appointment,
+      professional, // Pass the linked professional data
+    })
     setDialogOpen(true)
   }
 
   const handleDeleteClick = (id: number) => {
-    setAppointments((prev) => prev.filter((apt) => apt.id !== id))
+    db.deleteAppointment(id)
+    refreshData()
     toast.success('Agendamento removido com sucesso.')
   }
 
   const handleStatusChange = (id: number, newStatus: string) => {
-    setAppointments((prev) =>
-      prev.map((apt) => (apt.id === id ? { ...apt, status: newStatus } : apt)),
-    )
+    db.updateAppointment(id, { status: newStatus })
+    refreshData()
     toast.success(`Status alterado para ${newStatus}`)
   }
 
   const handleFormSubmit = (data: AppointmentFormValues) => {
-    const formattedDate = format(data.date, 'dd/MM/yyyy')
+    try {
+      if (dialogMode === 'add') {
+        // 1. Create or Update Professional
+        const prof = db.upsertProfessional({
+          name: data.prof,
+          cpf: data.cpf,
+          unit: data.unit,
+          role: data.role,
+        })
 
-    if (dialogMode === 'add') {
-      const newAppointment = {
-        id: Math.max(...appointments.map((a) => a.id), 0) + 1,
-        prof: data.prof,
-        training: data.training,
-        date: formattedDate,
-        channel: data.channel,
-        status: data.status,
+        // 2. Create Appointment
+        db.createAppointment({
+          professionalId: prof.id,
+          profName: prof.name,
+          training: data.training,
+          date: data.date,
+          channel: data.channel,
+          status: data.status,
+        })
+
+        toast.success('Novo agendamento criado com sucesso.')
+      } else if (dialogMode === 'edit' && selectedAppointment) {
+        // In edit mode, we typically update the appointment details
+        // Ideally we might also update professional details if they changed
+        if (data.cpf) {
+          // Check if we have professional data to update
+          db.upsertProfessional({
+            name: data.prof,
+            cpf: data.cpf,
+            unit: data.unit,
+            role: data.role,
+          })
+        }
+
+        let formattedDate = ''
+        if (data.date instanceof Date) {
+          formattedDate = format(data.date, 'dd/MM/yyyy')
+        }
+
+        db.updateAppointment(selectedAppointment.id, {
+          prof: data.prof,
+          training: data.training,
+          date: formattedDate,
+          channel: data.channel,
+          status: data.status,
+        })
+
+        toast.success('Agendamento atualizado com sucesso.')
       }
-      setAppointments((prev) => [newAppointment, ...prev])
-      toast.success('Novo agendamento criado com sucesso.')
-    } else if (dialogMode === 'edit' && selectedAppointment) {
-      setAppointments((prev) =>
-        prev.map((apt) =>
-          apt.id === selectedAppointment.id
-            ? {
-                ...apt,
-                prof: data.prof,
-                training: data.training,
-                date: formattedDate,
-                channel: data.channel,
-                status: data.status,
-              }
-            : apt,
-        ),
-      )
-      toast.success('Agendamento atualizado com sucesso.')
+      refreshData()
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao salvar os dados.')
     }
   }
 
@@ -166,7 +176,7 @@ export default function Appointments() {
     ) {
       return false
     }
-    // Note: Date logic would go here in a real implementation with parsed dates
+    // Date filter can be added here
     return true
   })
 
@@ -270,9 +280,7 @@ export default function Appointments() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          onClick={() => handleEditClick(apt)} // View same as Edit for now
-                        >
+                        <DropdownMenuItem onClick={() => handleEditClick(apt)}>
                           <Eye className="mr-2 h-4 w-4" /> Visualizar
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEditClick(apt)}>
@@ -318,6 +326,16 @@ export default function Appointments() {
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredAppointments.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="text-center py-6 text-muted-foreground"
+                  >
+                    Nenhum agendamento encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

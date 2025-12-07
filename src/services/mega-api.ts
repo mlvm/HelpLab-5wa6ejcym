@@ -6,6 +6,7 @@ import {
   ChatSender,
 } from '@/pages/WhatsappPanel.data'
 import { supabaseEdgeFunctions, AIResponse } from './supabase-edge-functions'
+import { db } from './database'
 
 export type AIProvider = 'chatgpt' | 'gemini'
 
@@ -81,7 +82,6 @@ class MegaApiService {
     if (storedLimits) {
       try {
         const parsed = JSON.parse(storedLimits)
-        // Deep merge to ensure new fields are present if old config exists
         if (parsed.chatgpt) {
           this.limits.chatgpt = { ...this.limits.chatgpt, ...parsed.chatgpt }
         }
@@ -174,7 +174,7 @@ class MegaApiService {
         const response = await supabaseEdgeFunctions.invokeAI(
           testPrompt,
           'chatgpt',
-          'gpt-4o-mini', // Defaulting to mini for test
+          'gpt-4o-mini',
           this.systemPrompt,
         )
         results.push({
@@ -202,7 +202,7 @@ class MegaApiService {
         const response = await supabaseEdgeFunctions.invokeAI(
           testPrompt,
           'gemini',
-          'gemini-1.5-flash', // Defaulting to flash for test
+          'gemini-1.5-flash',
           this.systemPrompt,
         )
         results.push({
@@ -343,10 +343,7 @@ class MegaApiService {
       return
     }
 
-    // Check Usage Limits
     const limit = this.limits[this.aiProvider]
-    // Mock check: In a real app, we would check a DB counter.
-    // For now, we assume limits are okay unless mock condition is met.
 
     try {
       const aiResponse = await supabaseEdgeFunctions.invokeAI(
@@ -356,19 +353,50 @@ class MegaApiService {
         this.systemPrompt,
       )
 
-      // Mock Token Limit Check
       if (limit && aiResponse.usage.total_tokens > limit.tokensPerResponse) {
         throw new Error('Token limit exceeded for this response.')
       }
+
+      // --- USER STORY IMPLEMENTATION ---
+      // Check if AI extracted data for appointment creation
+      let finalBotText = aiResponse.text
+      let finalAction = aiResponse.action
+
+      if (aiResponse.extracted_data) {
+        try {
+          const { professional, appointment } = aiResponse.extracted_data
+
+          // 1. Check & Update/Create Professional
+          const prof = db.upsertProfessional(professional)
+
+          // 2. Create Appointment
+          const appt = db.createAppointment({
+            professionalId: prof.id,
+            profName: prof.name,
+            training: appointment.training,
+            date: appointment.date,
+            channel: 'WhatsApp',
+            status: 'Agendado',
+          })
+
+          finalBotText += `\n\n✅ Agendamento #${appt.id} confirmado para ${appt.prof} no dia ${appt.date}!`
+          finalAction = 'Agendamento Criado no Banco de Dados'
+        } catch (dbError) {
+          console.error('Database operation failed', dbError)
+          finalBotText += `\n\n⚠️ Falha ao salvar no banco de dados.`
+          finalAction = 'Erro de Banco de Dados'
+        }
+      }
+      // ---------------------------------
 
       const botMessage: WhatsappMessage = {
         id: `m${Date.now()}_bot`,
         conversaId: conversationId,
         remetente: 'BOT',
-        conteudo: aiResponse.text,
+        conteudo: finalBotText,
         criadoEm: new Date().toISOString(),
-        acaoExecutadaPeloBot: aiResponse.action
-          ? `${this.aiProvider === 'gemini' ? 'Gemini' : 'ChatGPT'}: ${aiResponse.action}`
+        acaoExecutadaPeloBot: finalAction
+          ? `${this.aiProvider === 'gemini' ? 'Gemini' : 'ChatGPT'}: ${finalAction}`
           : 'Resposta Gerada',
         intencaoDetectada: `Modelo: ${aiResponse.model}`,
         aiProvider: aiResponse.provider,

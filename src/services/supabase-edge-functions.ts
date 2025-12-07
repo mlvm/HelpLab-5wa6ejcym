@@ -2,9 +2,23 @@
 // In a real scenario, this would use the supabase-js client:
 // await supabase.functions.invoke('ai-webhook', { body: { message, provider, model } })
 
+export interface ExtractedData {
+  professional: {
+    name: string
+    cpf: string
+    unit: string
+    role: string
+  }
+  appointment: {
+    training: string
+    date: string
+  }
+}
+
 export interface AIResponse {
   text: string
   action?: string
+  extracted_data?: ExtractedData
   usage: {
     prompt_tokens: number
     completion_tokens: number
@@ -41,23 +55,53 @@ export const supabaseEdgeFunctions = {
 
     let responseText = ''
     let action: string | undefined = undefined
+    let extractedData: ExtractedData | undefined = undefined
 
     // Simulate stylistic differences between providers
     const prefix = provider === 'gemini' ? '✨ [Gemini] ' : ''
 
-    if (systemPrompt && systemPrompt.trim().length > 0) {
-      // In a real scenario, the system prompt guides the behavior.
-      // We mock this by "acknowledging" the instruction if debugging.
-      // For user story, we assume it silently guides the AI.
-      console.log('[Edge Function] Using System Prompt:', systemPrompt)
-    }
+    // Mock extraction logic for the user story
+    // Trigger pattern: "agendar" + "cpf" + "para" (simple heuristic for demo)
+    if (lower.includes('agendar') && lower.includes('cpf')) {
+      // Try to "extract" data from a simulated formatted string
+      // Format expected for test: "Agendar [Training] para [Name], CPF [CPF], [Role] em [Unit] no dia [Date]"
+      // Regex is too complex for this simple mock, we'll just check keywords and return mock data if it looks like a registration request
 
-    if (
+      // MOCK EXTRACTION based on content analysis
+      // In real life, an LLM extracts this JSON.
+
+      // Fallback extraction data for testing
+      extractedData = {
+        professional: {
+          name: 'João da Silva',
+          cpf: '123.123.123-12',
+          unit: 'Hospital Regional',
+          role: 'Enfermeiro',
+        },
+        appointment: {
+          training: 'Biossegurança',
+          date: '20/10/2024',
+        },
+      }
+
+      // If the message contains specific data overrides for demo
+      const cpfMatch = content.match(/\d{3}\.\d{3}\.\d{3}-\d{2}/)
+      if (cpfMatch) extractedData.professional.cpf = cpfMatch[0]
+
+      // Simple name extraction heuristic (very naive)
+      if (content.includes('para ')) {
+        const afterPara = content.split('para ')[1].split(',')[0]
+        if (afterPara) extractedData.professional.name = afterPara.trim()
+      }
+
+      responseText = `${prefix}Recebi os dados. Processando agendamento para ${extractedData.professional.name}...`
+      action = 'Processar Agendamento Automático'
+    } else if (
       lower.includes('inscrever') ||
       lower.includes('curso') ||
       lower.includes('agendar')
     ) {
-      responseText = `${prefix}Olá! Percebi seu interesse em nossos treinamentos. Temos vagas para "Biossegurança Avançada" e "Primeiros Socorros". Posso te dar mais detalhes?`
+      responseText = `${prefix}Olá! Para agendar, por favor envie: "Agendar [Treinamento] para [Nome], CPF [CPF], [Cargo] em [Unidade] no dia [Data]".`
       action = 'Listar treinamentos'
     } else if (lower.includes('cancelar') || lower.includes('desistir')) {
       responseText = `${prefix}Entendo. Para cancelar com segurança, preciso validar sua identidade. Por favor, informe os 3 primeiros dígitos do CPF.`
@@ -89,6 +133,7 @@ export const supabaseEdgeFunctions = {
     return {
       text: responseText,
       action: action,
+      extracted_data: extractedData,
       usage: {
         prompt_tokens: Math.ceil(
           content.length / 4 + (systemPrompt?.length || 0) / 4,
