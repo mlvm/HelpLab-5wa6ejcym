@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -25,9 +26,11 @@ import {
   CheckSquare,
 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
+import { AttendanceDialog } from '@/components/classes/AttendanceDialog'
 
 export default function ClassDetails() {
   const { id } = useParams()
+  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -60,7 +63,7 @@ export default function ClassDetails() {
           <Button variant="outline">
             <MessageSquare className="mr-2 h-4 w-4" /> Comunicar
           </Button>
-          <Button>
+          <Button onClick={() => setIsAttendanceOpen(true)}>
             <CheckSquare className="mr-2 h-4 w-4" /> Registrar Presença
           </Button>
         </div>
@@ -163,6 +166,12 @@ export default function ClassDetails() {
           </CardContent>
         </Card>
       </div>
+
+      <AttendanceDialog
+        open={isAttendanceOpen}
+        onOpenChange={setIsAttendanceOpen}
+        className="Biossegurança Básica - Turma A"
+      />
     </div>
   )
 }

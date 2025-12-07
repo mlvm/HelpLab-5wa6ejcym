@@ -1,0 +1,18 @@
+export type ClassStatus =
+  | 'Planejada'
+  | 'Aberta'
+  | 'Lotada'
+  | 'Cancelada'
+  | 'Concluída'
+
+export interface ClassItem {
+  id: number
+  title: string
+  date: string
+  time: string
+  status: ClassStatus
+  instructor: string
+  location?: string
+  capacity?: number
+  enrolled?: number
+}

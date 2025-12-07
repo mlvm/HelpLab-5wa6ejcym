@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,8 +9,13 @@ import {
   Calendar as CalendarIcon,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import {
+  ClassFormDialog,
+  ClassFormValues,
+} from '@/components/classes/ClassFormDialog'
+import { toast } from 'sonner'
 
-const classes = [
+const initialClasses = [
   {
     id: 101,
     title: 'Biossegurança - Turma A',
@@ -53,6 +59,22 @@ const classes = [
 ]
 
 export default function Schedule() {
+  const [classes, setClasses] = useState(initialClasses)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+
+  const handleCreateClass = (data: ClassFormValues) => {
+    const newClass = {
+      id: Math.floor(Math.random() * 1000) + 200,
+      title: `Nova Turma (${data.trainingId})`,
+      date: data.date.toISOString().split('T')[0],
+      time: `${data.startTime} - ${data.endTime}`,
+      status: data.status,
+      instructor: `Instrutor ${data.instructorId}`,
+    }
+    setClasses([...classes, newClass])
+    toast.success('Nova turma criada com sucesso!')
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -62,7 +84,7 @@ export default function Schedule() {
             Visualize e gerencie as turmas agendadas.
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Criar Nova Turma
         </Button>
       </div>
@@ -189,6 +211,12 @@ export default function Schedule() {
           </CardContent>
         </Card>
       </div>
+
+      <ClassFormDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSubmit={handleCreateClass}
+      />
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Table,
   TableBody,
@@ -17,8 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { DatePicker } from '@/components/ui/date-picker'
+import { DateRange } from 'react-day-picker'
 
-const appointments = [
+const initialAppointments = [
   {
     id: 1,
     prof: 'Ana Clara',
@@ -32,7 +36,7 @@ const appointments = [
     prof: 'Carlos Eduardo',
     training: 'Biossegurança',
     date: '15/10/2024',
-    channel: 'Web',
+    channel: 'WhatsApp',
     status: 'Confirmado',
   },
   {
@@ -54,6 +58,13 @@ const appointments = [
 ]
 
 export default function Appointments() {
+  const [appointments, setAppointments] = useState(initialAppointments)
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+  const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined)
+
+  // Filter logic would go here, using the selected dates
+  // For now, we just display the controls as per requirements
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -67,7 +78,7 @@ export default function Appointments() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col xl:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -75,27 +86,38 @@ export default function Appointments() {
                 className="pl-8"
               />
             </div>
-            <Select defaultValue="all">
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Canal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos Canais</SelectItem>
-                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                <SelectItem value="web">Web</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select defaultValue="all">
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos Status</SelectItem>
-                <SelectItem value="confirmed">Confirmado</SelectItem>
-                <SelectItem value="canceled">Cancelado</SelectItem>
-                <SelectItem value="noshow">Faltou</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col md:flex-row gap-4">
+              <DatePicker
+                date={specificDate}
+                setDate={setSpecificDate}
+                placeholder="Data Específica"
+                className="w-[180px]"
+              />
+              <DateRangePicker
+                date={dateRange}
+                setDate={setDateRange}
+                className="w-auto"
+              />
+              <Select defaultValue="whatsapp">
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Canal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select defaultValue="all">
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Status</SelectItem>
+                  <SelectItem value="confirmed">Confirmado</SelectItem>
+                  <SelectItem value="canceled">Cancelado</SelectItem>
+                  <SelectItem value="noshow">Faltou</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -118,11 +140,7 @@ export default function Appointments() {
                   <TableCell>
                     <Badge
                       variant="outline"
-                      className={
-                        apt.channel === 'WhatsApp'
-                          ? 'bg-green-50 text-green-700'
-                          : 'bg-blue-50 text-blue-700'
-                      }
+                      className="bg-green-50 text-green-700 border-green-200"
                     >
                       {apt.channel}
                     </Badge>
