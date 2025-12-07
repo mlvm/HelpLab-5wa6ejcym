@@ -20,6 +20,8 @@ import {
   Save,
   CheckCircle2,
   AlertCircle,
+  Copy,
+  RefreshCw,
 } from 'lucide-react'
 import { megaApi } from '@/services/mega-api'
 
@@ -95,6 +97,31 @@ export default function Settings() {
     } finally {
       setIsTesting(false)
     }
+  }
+
+  const handleCopyWebhook = () => {
+    if (webhookUrl) {
+      navigator.clipboard.writeText(webhookUrl)
+      toast({
+        title: 'Copiado',
+        description: 'URL do webhook copiada para a área de transferência.',
+      })
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'URL vazia',
+        description: 'Não há URL para copiar. Clique em Atualizar.',
+      })
+    }
+  }
+
+  const handleUpdateWebhook = () => {
+    const url = `${window.location.origin}/api/webhooks/mega`
+    setWebhookUrl(url)
+    toast({
+      title: 'URL Atualizada',
+      description: 'Webhook URL atualizada com o domínio atual.',
+    })
   }
 
   return (
@@ -220,13 +247,32 @@ export default function Settings() {
 
               <div className="grid gap-2">
                 <Label htmlFor="webhook-url">Webhook URL</Label>
-                <Input
-                  id="webhook-url"
-                  type="url"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  placeholder="https://sua-app.com/api/webhooks/mega"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="webhook-url"
+                    type="url"
+                    value={webhookUrl}
+                    readOnly
+                    placeholder="https://sua-app.com/api/webhooks/mega"
+                    className="flex-1 bg-muted/50"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleUpdateWebhook}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Atualizar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCopyWebhook}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copiar
+                  </Button>
+                </div>
                 <p className="text-[0.8rem] text-muted-foreground">
                   Endpoint para receber eventos de mensagens e status em tempo
                   real.
