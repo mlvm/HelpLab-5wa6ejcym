@@ -16,8 +16,6 @@ import { useToast } from '@/hooks/use-toast'
 import {
   WhatsappConversation,
   WhatsappMessage,
-  MOCK_PROFESSIONALS, // Keep static pro data for now
-  MOCK_APPOINTMENTS, // Keep static apt data for now
   SEED_PROFESSIONALS,
   SEED_APPOINTMENTS,
 } from './WhatsappPanel.data'
@@ -75,7 +73,7 @@ export default function WhatsappPanel() {
       unsubscribe()
       megaApi.disconnect()
     }
-  }, [toast, selectedConversationId]) // Added selectedConversationId to dependency if we want immediate update on selection, but handled inside subscribe
+  }, [toast, selectedConversationId])
 
   // Fetch messages when conversation selected
   useEffect(() => {
@@ -127,10 +125,9 @@ export default function WhatsappPanel() {
     (c) => c.id === selectedConversationId,
   )
 
-  // Fallback to SEED/MOCK for professionals if not in dynamic list (mock implementation detail)
+  // Fallback to SEED for professionals if not in dynamic list (mock implementation detail)
   const currentProfessional = selectedConversationId
-    ? SEED_PROFESSIONALS[selectedConversationId] ||
-      MOCK_PROFESSIONALS[selectedConversationId]
+    ? SEED_PROFESSIONALS[selectedConversationId]
     : undefined
 
   const currentAppointments = SEED_APPOINTMENTS.filter(
