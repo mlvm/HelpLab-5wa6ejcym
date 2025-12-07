@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Search, Loader2, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
+import {
+  Search,
+  Loader2,
+  Wifi,
+  WifiOff,
+  AlertTriangle,
+  Zap,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
@@ -44,7 +51,9 @@ export default function WhatsappPanel() {
       try {
         // Check for credentials first
         const creds = megaApi.getCredentials()
-        if (!creds.apiKey) {
+
+        // Now requires both Mega API Key and OpenAI API Key for full functionality
+        if (!creds.apiKey || !creds.openaiApiKey) {
           setMissingConfig(true)
           setIsLoading(false)
           return
@@ -60,8 +69,7 @@ export default function WhatsappPanel() {
           toast({
             variant: 'destructive',
             title: 'Falha na Conexão',
-            description:
-              'Verifique suas credenciais da Mega API nas configurações.',
+            description: 'Verifique suas credenciais nas configurações.',
           })
         }
       } catch (error) {
@@ -117,7 +125,7 @@ export default function WhatsappPanel() {
           setIsWhatsappConnected(true)
           toast({
             title: 'Conectado',
-            description: 'Serviço de IA Mega API ativo.',
+            description: 'Serviço de Mensagens e ChatGPT ativos.',
           })
         } else {
           toast({
@@ -132,7 +140,7 @@ export default function WhatsappPanel() {
         setIsWhatsappConnected(false)
         toast({
           title: 'Desconectado',
-          description: 'Serviço de IA pausado.',
+          description: 'Serviços pausados.',
         })
       }
     } catch (e) {
@@ -150,7 +158,7 @@ export default function WhatsappPanel() {
         toast({
           variant: 'destructive',
           title: 'Erro ao enviar',
-          description: 'Verifique sua conexão com a Mega API.',
+          description: 'Verifique sua conexão com a API.',
         })
       }
     }
@@ -173,15 +181,16 @@ export default function WhatsappPanel() {
   if (missingConfig) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] animate-fade-in">
-        <div className="text-center space-y-4 max-w-md p-6 border rounded-lg bg-slate-50">
+        <div className="text-center space-y-4 max-w-md p-6 border rounded-lg bg-slate-50 shadow-sm">
           <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto" />
           <h2 className="text-xl font-bold">Configuração Necessária</h2>
-          <p className="text-muted-foreground">
-            Para acessar o painel do WhatsApp, é necessário configurar as
-            credenciais da Mega API.
+          <p className="text-muted-foreground text-sm">
+            Para utilizar o painel inteligente, é necessário configurar as
+            credenciais da <strong>Mega API</strong> e do{' '}
+            <strong>ChatGPT</strong>.
           </p>
           <Button asChild>
-            <Link to="/settings">Ir para Configurações</Link>
+            <Link to="/settings">Configurar Integrações</Link>
           </Button>
         </div>
       </div>
@@ -218,18 +227,24 @@ export default function WhatsappPanel() {
               >
                 {isWhatsappConnected ? (
                   <>
-                    <Wifi className="h-3 w-3" /> Conectado: Mega API
+                    <Wifi className="h-3 w-3" /> Online
                   </>
                 ) : (
                   <>
-                    <WifiOff className="h-3 w-3" /> Desconectado
+                    <WifiOff className="h-3 w-3" /> Offline
                   </>
                 )}
               </Label>
             </div>
+            {isWhatsappConnected && (
+              <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-50 border border-green-200 text-green-700 text-xs font-medium">
+                <Zap className="h-3 w-3 fill-green-700" /> ChatGPT Ativo
+              </div>
+            )}
           </div>
           <p className="text-muted-foreground mt-1">
-            Monitoramento em tempo real das conversas e raciocínio da IA.
+            Monitoramento em tempo real com respostas geradas via Supabase Edge
+            Functions.
           </p>
         </div>
 

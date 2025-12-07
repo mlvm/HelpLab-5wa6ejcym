@@ -5,15 +5,15 @@ import {
   SEED_MESSAGES,
   ChatSender,
 } from '@/pages/WhatsappPanel.data'
+import { supabaseEdgeFunctions } from './supabase-edge-functions'
 
 // Service simulating Mega API interactions with "Real" capabilities
-// In a real scenario, this would call the actual HTTP endpoints.
-// For this demo, it simulates the backend logic on the client-side
-// but structures the calls as if they were real API interactions.
+// Updated to integrate with Supabase Edge Functions for ChatGPT responses
 
 class MegaApiService {
   private apiKey: string | null = null
   private webhookUrl: string | null = null
+  private openaiApiKey: string | null = null // Secure storage simulation
   private isConnected = false
   private conversations: WhatsappConversation[] = []
   private messages: Record<string, WhatsappMessage[]> = {}
@@ -21,11 +21,14 @@ class MegaApiService {
   private pollingInterval: NodeJS.Timeout | null = null
 
   constructor() {
-    // Load persisted config (Simulating Supabase Secrets fetch)
+    // Load persisted config (Simulating Supabase Secrets/Vault fetch)
     const storedKey = localStorage.getItem('mega_api_key')
     const storedUrl = localStorage.getItem('mega_webhook_url')
+    const storedOpenAiKey = localStorage.getItem('openai_api_key')
+
     if (storedKey) this.apiKey = storedKey
     if (storedUrl) this.webhookUrl = storedUrl
+    if (storedOpenAiKey) this.openaiApiKey = storedOpenAiKey
 
     // Initialize with seed data if empty (Simulating DB fetch)
     if (Object.keys(this.messages).length === 0) {
@@ -39,14 +42,19 @@ class MegaApiService {
   async updateConfiguration(
     apiKey: string,
     webhookUrl: string,
+    openaiApiKey: string,
   ): Promise<boolean> {
     // Simulate secure storage
     return new Promise((resolve) => {
       setTimeout(() => {
         this.apiKey = apiKey
         this.webhookUrl = webhookUrl
+        this.openaiApiKey = openaiApiKey
+
         localStorage.setItem('mega_api_key', apiKey)
         localStorage.setItem('mega_webhook_url', webhookUrl)
+        localStorage.setItem('openai_api_key', openaiApiKey) // In real app: Supabase Vault
+
         resolve(true)
       }, 800)
     })
@@ -56,6 +64,7 @@ class MegaApiService {
     return {
       apiKey: this.apiKey,
       webhookUrl: this.webhookUrl,
+      openaiApiKey: this.openaiApiKey,
     }
   }
 
@@ -64,7 +73,6 @@ class MegaApiService {
   async testConnection(key: string): Promise<boolean> {
     console.log('Testing connection with key:', key)
     // Simulate an API Health Check call
-    // In real implementation: await fetch('https://api.mega.com/v1/health', { headers: { Authorization: `Bearer ${key}` } })
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         if (key && key.length > 10) {
@@ -112,7 +120,6 @@ class MegaApiService {
 
   async getConversations(): Promise<WhatsappConversation[]> {
     if (!this.isConnected) {
-      // Return empty if not connected to simulate "Real" behavior requiring auth
       return []
     }
 
@@ -157,7 +164,7 @@ class MegaApiService {
           conteudo: content,
           criadoEm: new Date().toISOString(),
           intencaoDetectada:
-            sender === 'USUARIO' ? this.detectIntent(content) : undefined,
+            sender === 'USUARIO' ? 'Processando com ChatGPT...' : undefined,
           status: 'sent',
         }
 
@@ -173,7 +180,7 @@ class MegaApiService {
         this.notifyListeners()
         resolve(newMessage)
 
-        // Trigger Bot Response if User sent message
+        // Trigger ChatGPT Response via Edge Function if User sent message
         if (sender === 'USUARIO') {
           this.triggerBotResponse(conversationId, content)
         }
@@ -181,85 +188,49 @@ class MegaApiService {
     })
   }
 
-  private triggerBotResponse(conversationId: string, userContent: string) {
-    // Determine delay based on content length to simulate "thinking"
-    const thinkingTime = 1500 + Math.random() * 2000
+  private async triggerBotResponse(
+    conversationId: string,
+    userContent: string,
+  ) {
+    if (!this.openaiApiKey) {
+      console.warn('ChatGPT API Key missing. Bot cannot reply.')
+      return
+    }
 
-    setTimeout(() => {
-      const { text, action } = this.generateAIResponse(userContent)
+    try {
+      // Call Supabase Edge Function to get ChatGPT response
+      const gptResponse = await supabaseEdgeFunctions.invokeChatGPT(userContent)
 
       const botMessage: WhatsappMessage = {
         id: `m${Date.now()}_bot`,
         conversaId: conversationId,
         remetente: 'BOT',
-        conteudo: text,
+        conteudo: gptResponse.text,
         criadoEm: new Date().toISOString(),
-        acaoExecutadaPeloBot: `Ação: ${action}`,
+        acaoExecutadaPeloBot: gptResponse.action
+          ? `ChatGPT: ${gptResponse.action}`
+          : 'ChatGPT: Resposta Gerada',
+        intencaoDetectada: `Modelo: ${gptResponse.model}`,
       }
 
       this.messages[conversationId].push(botMessage)
       this.updateConversationPreview(conversationId, botMessage)
       this.notifyListeners()
-    }, thinkingTime)
-  }
-
-  // --- AI Logic Simulation (Mega API Brain) ---
-
-  private detectIntent(content: string): string {
-    const lower = content.toLowerCase()
-    if (
-      lower.includes('inscrever') ||
-      lower.includes('curso') ||
-      lower.includes('agendar')
-    )
-      return 'Intenção: Inscrição em treinamento'
-    if (lower.includes('cancelar') || lower.includes('desistir'))
-      return 'Intenção: Cancelamento'
-    if (lower.includes('certificado') || lower.includes('diploma'))
-      return 'Intenção: Solicitação de certificado'
-    if (lower.includes('erro') || lower.includes('problema'))
-      return 'Intenção: Relato de problema técnico'
-    if (lower.includes('olá') || lower.includes('oi') || lower.includes('bom'))
-      return 'Intenção: Saudação'
-    return 'Intenção: Desconhecida'
-  }
-
-  private generateAIResponse(content: string): {
-    text: string
-    action: string
-  } {
-    const lower = content.toLowerCase()
-    if (
-      lower.includes('inscrever') ||
-      lower.includes('curso') ||
-      lower.includes('agendar')
-    ) {
-      return {
-        text: 'Claro! Temos vagas para Biossegurança e Primeiros Socorros. Qual você prefere?',
-        action: 'Listar treinamentos disponíveis',
+    } catch (error) {
+      console.error('Failed to get ChatGPT response:', error)
+      // Fallback error message
+      const errorMessage: WhatsappMessage = {
+        id: `m${Date.now()}_err`,
+        conversaId: conversationId,
+        remetente: 'BOT',
+        conteudo:
+          'Desculpe, estou enfrentando dificuldades técnicas para processar sua mensagem no momento.',
+        criadoEm: new Date().toISOString(),
+        acaoExecutadaPeloBot: 'Erro: Falha na Edge Function',
       }
-    }
-    if (lower.includes('cancelar')) {
-      return {
-        text: 'Entendo. Para cancelar, preciso que confirme seu CPF.',
-        action: 'Iniciar fluxo de cancelamento',
-      }
-    }
-    if (lower.includes('certificado')) {
-      return {
-        text: 'Os certificados são emitidos 24h após o curso. Você já verificou seu email?',
-        action: 'Consultar status de certificação',
-      }
-    }
-    if (lower.includes('olá') || lower.includes('oi')) {
-      return {
-        text: 'Olá! Sou o assistente virtual do HelpLab. Em que posso ajudar?',
-        action: 'Saudação inicial',
-      }
-    }
-    return {
-      text: 'Desculpe, não entendi. Pode reformular sua dúvida?',
-      action: 'Fallback - Transferir para humano se persistir',
+      this.messages[conversationId].push(errorMessage)
+      this.updateConversationPreview(conversationId, errorMessage)
+      this.notifyListeners()
     }
   }
 
@@ -277,9 +248,6 @@ class MegaApiService {
             ? (this.conversations[convIndex].unreadCount || 0) + 1
             : 0,
       }
-    } else {
-      // New conversation simulation
-      // In real app, this would come from a webhook event for "message_received"
     }
   }
 
@@ -309,11 +277,11 @@ class MegaApiService {
     if (!randomConv) return
 
     const msgs = [
-      'Olá, ainda tem vaga?',
-      'Não recebi meu link.',
-      'Gostaria de falar com atendente.',
-      'Obrigado!',
-      'Qual o endereço do curso?',
+      'Olá, ainda tem vaga para o curso?',
+      'Gostaria de cancelar minha inscrição.',
+      'O certificado demora quanto tempo?',
+      'Qual o valor do treinamento?',
+      'Vocês tem curso de gestão?',
     ]
     const content = msgs[Math.floor(Math.random() * msgs.length)]
 
