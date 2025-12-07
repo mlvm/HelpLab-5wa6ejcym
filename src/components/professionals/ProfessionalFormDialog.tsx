@@ -70,6 +70,7 @@ export function ProfessionalFormDialog({
     const fetchUnits = async () => {
       try {
         const data = await domainApi.getUnits()
+        // Filter only active units for new professionals, but keep logic simple for now as per requirements
         setUnits(data)
       } catch (error) {
         console.error('Failed to fetch units', error)
