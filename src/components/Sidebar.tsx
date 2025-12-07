@@ -12,6 +12,8 @@ import {
   ChevronRight,
   UserCircle,
   Bot,
+  Building2,
+  GraduationCap,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -39,6 +41,8 @@ export function Sidebar({
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
     { icon: Bot, label: 'Assistente IA', href: '/whatsapp-panel' },
     { icon: Users, label: 'Profissionais', href: '/professionals' },
+    { icon: GraduationCap, label: 'Instrutores', href: '/instructors' },
+    { icon: Building2, label: 'Unidades', href: '/units' },
     { icon: BookOpen, label: 'Catálogo', href: '/trainings' },
     { icon: Calendar, label: 'Agenda e Turmas', href: '/schedule' },
     { icon: CalendarCheck, label: 'Agendamentos', href: '/appointments' },

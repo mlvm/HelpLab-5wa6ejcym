@@ -17,6 +17,8 @@ import Communications from './pages/Communications'
 import ProfessionalHistory from './pages/ProfessionalHistory'
 import WhatsappPanel from './pages/WhatsappPanel'
 import NotFound from './pages/NotFound'
+import Units from './pages/Units'
+import Instructors from './pages/Instructors'
 
 const App = () => (
   <BrowserRouter
@@ -32,6 +34,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/whatsapp-panel" element={<WhatsappPanel />} />
           <Route path="/professionals" element={<Professionals />} />
+          <Route path="/instructors" element={<Instructors />} />
+          <Route path="/units" element={<Units />} />
           <Route path="/trainings" element={<Trainings />} />
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/class/:id" element={<ClassDetails />} />
