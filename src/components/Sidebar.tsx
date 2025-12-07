@@ -10,7 +10,6 @@ import {
   MessageSquare,
   ChevronLeft,
   ChevronRight,
-  UserCircle,
   Bot,
   Building2,
   GraduationCap,
@@ -56,24 +55,23 @@ export function Sidebar({
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-    { icon: Bot, label: 'Assistente IA', href: '/whatsapp-panel' },
-    { icon: Users, label: 'Profissionais', href: '/professionals' },
-    { icon: GraduationCap, label: 'Instrutores', href: '/instructors' },
-    { icon: Building2, label: 'Unidades', href: '/units' },
-    { icon: BookOpen, label: 'Catálogo', href: '/trainings' },
-    { icon: Calendar, label: 'Agenda e Turmas', href: '/schedule' },
+    { icon: Bot, label: 'Assistente de IA', href: '/whatsapp-panel' },
     { icon: CalendarCheck, label: 'Agendamentos', href: '/appointments' },
-    { icon: BarChart, label: 'Relatórios', href: '/reports' },
+    { icon: Calendar, label: 'Agenda e Turmas', href: '/schedule' },
+    { icon: BookOpen, label: 'Catálogo', href: '/trainings' },
     { icon: MessageSquare, label: 'Comunicações', href: '/communications' },
+    { icon: GraduationCap, label: 'Instrutores', href: '/instructors' },
+    { icon: Users, label: 'Profissionais', href: '/professionals' },
+    { icon: Building2, label: 'Unidades', href: '/units' },
+    { icon: BarChart, label: 'Relatórios', href: '/reports' },
     {
       icon: Settings,
       label: 'Configurações',
       href: '/settings',
       subItems: [
         { label: 'Integrações & IA', href: '/settings' },
-        { label: 'Minha Conta', href: '/settings/account' },
         { label: 'Auditoria', href: '/settings/audit' },
-        { label: 'Meu Histórico', href: '/settings/my-history' },
+        { label: 'Contas', href: '/settings/account' },
       ],
     },
   ]
@@ -153,9 +151,7 @@ export function Sidebar({
                     variant="ghost"
                     className={cn(
                       'w-full justify-between px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-foreground',
-                      isParentActive &&
-                        !openSubmenus[item.label] &&
-                        'text-primary bg-accent/50',
+                      isParentActive && 'text-primary bg-accent/50',
                     )}
                   >
                     <div className="flex items-center gap-3">
