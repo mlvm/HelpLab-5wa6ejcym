@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -8,24 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -40,8 +25,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Professional, ProfessionalStatus } from '@/types/professional'
+import {
+  ProfessionalFormDialog,
+  ProfessionalFormValues,
+} from '@/components/professionals/ProfessionalFormDialog'
+import { useToast } from '@/hooks/use-toast'
 
-const professionals = [
+const INITIAL_DATA: Professional[] = [
   {
     id: 1,
     name: 'Ana Clara Souza',
@@ -85,6 +76,99 @@ const professionals = [
 ]
 
 export default function Professionals() {
+  const [professionals, setProfessionals] =
+    useState<Professional[]>(INITIAL_DATA)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [unitFilter, setUnitFilter] = useState('all')
+
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'view'>('add')
+  const [selectedProfessional, setSelectedProfessional] =
+    useState<Professional | null>(null)
+
+  const { toast } = useToast()
+
+  const handleAddClick = () => {
+    setDialogMode('add')
+    setSelectedProfessional(null)
+    setDialogOpen(true)
+  }
+
+  const handleEditClick = (professional: Professional) => {
+    setDialogMode('edit')
+    setSelectedProfessional(professional)
+    setDialogOpen(true)
+  }
+
+  const handleViewClick = (professional: Professional) => {
+    setDialogMode('view')
+    setSelectedProfessional(professional)
+    setDialogOpen(true)
+  }
+
+  const handleStatusChange = (
+    id: number,
+    currentStatus: ProfessionalStatus,
+  ) => {
+    const newStatus: ProfessionalStatus =
+      currentStatus === 'Ativo' ? 'Inativo' : 'Ativo'
+
+    setProfessionals((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p)),
+    )
+
+    toast({
+      title: 'Status atualizado',
+      description: `O profissional foi ${newStatus === 'Ativo' ? 'ativado' : 'inativado'} com sucesso.`,
+    })
+  }
+
+  const handleFormSubmit = (data: ProfessionalFormValues) => {
+    if (dialogMode === 'add') {
+      const newId = Math.max(...professionals.map((p) => p.id), 0) + 1
+      const newProfessional: Professional = {
+        id: newId,
+        status: 'Ativo',
+        ...data,
+      }
+      setProfessionals((prev) => [...prev, newProfessional])
+      toast({
+        title: 'Profissional adicionado',
+        description: `${data.name} foi cadastrado com sucesso.`,
+      })
+    } else if (dialogMode === 'edit' && selectedProfessional) {
+      setProfessionals((prev) =>
+        prev.map((p) =>
+          p.id === selectedProfessional.id ? { ...p, ...data } : p,
+        ),
+      )
+      toast({
+        title: 'Profissional atualizado',
+        description: `Os dados de ${data.name} foram atualizados.`,
+      })
+    }
+  }
+
+  const filteredProfessionals = professionals.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.cpf.includes(searchQuery) ||
+      p.role.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && p.status === 'Ativo') ||
+      (statusFilter === 'inactive' && p.status !== 'Ativo')
+
+    const matchesUnit =
+      unitFilter === 'all' ||
+      (unitFilter === 'lacen' && p.unit.includes('LACEN')) ||
+      (unitFilter === 'hosp' && p.unit.toLowerCase().includes('hospital'))
+
+    return matchesSearch && matchesStatus && matchesUnit
+  })
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -103,67 +187,9 @@ export default function Professionals() {
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" /> Exportar
           </Button>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> Novo Profissional
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Adicionar Profissional</DialogTitle>
-                <DialogDescription>
-                  Preencha os dados do novo profissional. Clique em salvar para
-                  confirmar.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Nome
-                  </Label>
-                  <Input
-                    id="name"
-                    placeholder="Nome completo"
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="cpf" className="text-right">
-                    CPF
-                  </Label>
-                  <Input
-                    id="cpf"
-                    placeholder="000.000.000-00"
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="unit" className="text-right">
-                    Unidade
-                  </Label>
-                  <Input
-                    id="unit"
-                    placeholder="Ex: LACEN"
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="role" className="text-right">
-                    Cargo
-                  </Label>
-                  <Input
-                    id="role"
-                    placeholder="Ex: Enfermeiro"
-                    className="col-span-3"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Salvar Profissional</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={handleAddClick}>
+            <Plus className="mr-2 h-4 w-4" /> Novo Profissional
+          </Button>
         </div>
       </div>
 
@@ -175,10 +201,12 @@ export default function Professionals() {
               <Input
                 placeholder="Buscar por nome, CPF ou cargo..."
                 className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="flex gap-2 w-full md:w-auto">
-              <Select defaultValue="all">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full md:w-[150px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -188,7 +216,7 @@ export default function Professionals() {
                   <SelectItem value="inactive">Inativo</SelectItem>
                 </SelectContent>
               </Select>
-              <Select defaultValue="all">
+              <Select value={unitFilter} onValueChange={setUnitFilter}>
                 <SelectTrigger className="w-full md:w-[150px]">
                   <SelectValue placeholder="Unidade" />
                 </SelectTrigger>
@@ -214,50 +242,91 @@ export default function Professionals() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {professionals.map((professional) => (
-                <TableRow key={professional.id}>
-                  <TableCell className="font-medium">
-                    {professional.name}
-                  </TableCell>
-                  <TableCell>{professional.cpf}</TableCell>
-                  <TableCell>{professional.unit}</TableCell>
-                  <TableCell>{professional.role}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        professional.status === 'Ativo'
-                          ? 'default'
-                          : professional.status === 'Bloqueado'
-                            ? 'destructive'
-                            : 'secondary'
-                      }
-                    >
-                      {professional.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Visualizar</DropdownMenuItem>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Inativar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {filteredProfessionals.length > 0 ? (
+                filteredProfessionals.map((professional) => (
+                  <TableRow key={professional.id}>
+                    <TableCell className="font-medium">
+                      {professional.name}
+                    </TableCell>
+                    <TableCell>{professional.cpf}</TableCell>
+                    <TableCell>{professional.unit}</TableCell>
+                    <TableCell>{professional.role}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          professional.status === 'Ativo'
+                            ? 'default'
+                            : professional.status === 'Bloqueado'
+                              ? 'destructive'
+                              : 'secondary'
+                        }
+                      >
+                        {professional.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleViewClick(professional)}
+                          >
+                            Visualizar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleEditClick(professional)}
+                          >
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className={
+                              professional.status === 'Ativo'
+                                ? 'text-destructive'
+                                : 'text-primary'
+                            }
+                            onClick={() =>
+                              handleStatusChange(
+                                professional.id,
+                                professional.status,
+                              )
+                            }
+                          >
+                            {professional.status === 'Ativo'
+                              ? 'Inativar'
+                              : 'Ativar'}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="h-24 text-center text-muted-foreground"
+                  >
+                    Nenhum profissional encontrado.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <ProfessionalFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        mode={dialogMode}
+        professional={selectedProfessional}
+        onSubmit={handleFormSubmit}
+      />
     </div>
   )
 }
