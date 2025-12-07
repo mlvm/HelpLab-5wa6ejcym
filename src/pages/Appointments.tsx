@@ -51,7 +51,7 @@ import {
 } from '@/components/appointments/AppointmentFormDialog'
 import { toast } from 'sonner'
 import { db, Appointment } from '@/services/database'
-import { megaApi } from '@/services/mega-api'
+import { notificationService } from '@/services/notification-service'
 
 export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -113,25 +113,23 @@ export default function Appointments() {
     toast.success(`Status alterado para ${newStatus}`)
 
     // Automatic Notification Logic
-    if (appointment && oldStatus === 'Agendado') {
-      if (newStatus === 'Confirmado' || newStatus === 'Cancelado') {
+    if (appointment) {
+      // Only notify on significant changes if needed, or always
+      if (oldStatus !== newStatus) {
         const prof = db
           .getProfessionals()
           .find((p) => p.id === appointment.professionalId)
-        if (prof && prof.whatsapp) {
-          try {
-            await megaApi.sendStatusUpdateNotification(
-              prof.whatsapp,
-              prof.name,
-              appointment.training,
-              appointment.date,
-              newStatus,
-            )
-            toast.success('Notificação WhatsApp enviada!')
-          } catch (error) {
-            console.error('Failed to send notification', error)
-            toast.error('Falha ao enviar notificação WhatsApp')
-          }
+        if (prof) {
+          await notificationService.sendNotification('status_change', {
+            professionalName: prof.name,
+            professionalPhone: prof.whatsapp,
+            professionalEmail: undefined, // Add email field to professional if available in future
+            trainingName: appointment.training,
+            appointmentDate: appointment.date,
+            appointmentId: appointment.id,
+            status: newStatus,
+          })
+          toast.success('Notificações enviadas (se configurado)')
         }
       }
     }
@@ -162,19 +160,15 @@ export default function Appointments() {
         toast.success('Novo agendamento criado com sucesso.')
 
         // Send Notification
-        if (prof.whatsapp) {
-          try {
-            await megaApi.sendAppointmentConfirmation(
-              prof.whatsapp,
-              prof.name,
-              appt.training,
-              appt.date,
-            )
-            toast.success('Confirmação enviada via WhatsApp!')
-          } catch (error) {
-            console.error('Failed to send notification', error)
-          }
-        }
+        await notificationService.sendNotification('confirmation', {
+          professionalName: prof.name,
+          professionalPhone: prof.whatsapp,
+          trainingName: appt.training,
+          appointmentDate: appt.date,
+          appointmentId: appt.id,
+          status: appt.status,
+        })
+        toast.success('Notificação de confirmação enviada!')
       } else if (dialogMode === 'edit' && selectedAppointment) {
         // In edit mode, we typically update the appointment details
         // Ideally we might also update professional details if they changed
