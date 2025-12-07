@@ -9,9 +9,7 @@ import {
   Cpu,
   Zap,
   Play,
-  Gauge,
   AlertTriangle,
-  FileText,
   Mail,
   MessageSquare,
   Edit,
@@ -27,9 +25,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
@@ -48,6 +44,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 import {
   megaApi,
   AIProvider,
@@ -67,6 +64,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 
 const CHATGPT_MODELS = [
   {
@@ -182,7 +180,7 @@ export default function Settings() {
       const isValid = GEMINI_MODELS.some((m) => m.id === aiModel)
       if (!isValid) setAiModel(GEMINI_MODELS[0].id)
     }
-  }, [aiProvider])
+  }, [aiProvider, aiModel])
 
   const handleSave = async () => {
     setIsLoading(true)
@@ -501,12 +499,12 @@ export default function Settings() {
                     {testResults.map((result) => (
                       <div
                         key={result.provider}
-                        className={
-                          'border rounded-lg p-4 ' +
-                          (result.success
+                        className={cn(
+                          'border rounded-lg p-4',
+                          result.success
                             ? 'bg-green-50/50 border-green-200'
-                            : 'bg-red-50/50 border-red-200')
-                        }
+                            : 'bg-red-50/50 border-red-200',
+                        )}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-bold uppercase flex items-center gap-2">
