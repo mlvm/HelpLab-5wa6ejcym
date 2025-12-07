@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   LayoutDashboard,
   Users,
@@ -6,7 +7,6 @@ import {
   CalendarCheck,
   BarChart,
   Settings,
-  FileText,
   MessageSquare,
   ChevronLeft,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
   Bot,
   Building2,
   GraduationCap,
+  ChevronDown,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,19 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface SidebarProps {
   isCollapsed: boolean
@@ -36,6 +50,9 @@ export function Sidebar({
   className,
 }: SidebarProps) {
   const location = useLocation()
+  const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({
+    Configurações: true,
+  })
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -47,11 +64,23 @@ export function Sidebar({
     { icon: Calendar, label: 'Agenda e Turmas', href: '/schedule' },
     { icon: CalendarCheck, label: 'Agendamentos', href: '/appointments' },
     { icon: BarChart, label: 'Relatórios', href: '/reports' },
-    { icon: FileText, label: 'Auditoria', href: '/audit' },
     { icon: MessageSquare, label: 'Comunicações', href: '/communications' },
-    { icon: Settings, label: 'Configurações', href: '/settings' },
-    { icon: UserCircle, label: 'Meu Histórico', href: '/my-history' },
+    {
+      icon: Settings,
+      label: 'Configurações',
+      href: '/settings',
+      subItems: [
+        { label: 'Integrações & IA', href: '/settings' },
+        { label: 'Minha Conta', href: '/settings/account' },
+        { label: 'Auditoria', href: '/settings/audit' },
+        { label: 'Meu Histórico', href: '/settings/my-history' },
+      ],
+    },
   ]
+
+  const toggleSubmenu = (label: string) => {
+    setOpenSubmenus((prev) => ({ ...prev, [label]: !prev[label] }))
+  }
 
   return (
     <aside
@@ -63,12 +92,114 @@ export function Sidebar({
     >
       <nav className="flex-1 py-4 flex flex-col gap-1 px-2 overflow-y-auto">
         {navItems.map((item) => {
+          // Check if parent or any child is active
+          const isParentActive =
+            location.pathname === item.href ||
+            (item.subItems &&
+              item.subItems.some((sub) => location.pathname === sub.href))
+
+          // Special handling for collapse state with submenus
+          if (item.subItems && isCollapsed) {
+            return (
+              <DropdownMenu key={item.label}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'w-full h-10 flex justify-center',
+                      isParentActive && 'bg-accent text-primary',
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  side="right"
+                  className="w-56"
+                  align="start"
+                >
+                  <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {item.subItems.map((sub) => (
+                    <DropdownMenuItem key={sub.href} asChild>
+                      <Link
+                        to={sub.href}
+                        className={cn(
+                          'w-full cursor-pointer',
+                          location.pathname === sub.href && 'bg-accent',
+                        )}
+                      >
+                        {sub.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )
+          }
+
+          // Collapsible Menu for Expanded State
+          if (item.subItems) {
+            return (
+              <Collapsible
+                key={item.label}
+                open={openSubmenus[item.label]}
+                onOpenChange={() => toggleSubmenu(item.label)}
+                className="w-full"
+              >
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      'w-full justify-between px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-foreground',
+                      isParentActive &&
+                        !openSubmenus[item.label] &&
+                        'text-primary bg-accent/50',
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.label}</span>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 transition-transform duration-200',
+                        openSubmenus[item.label] ? 'rotate-180' : '',
+                      )}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-1 pt-1 pb-2">
+                  {item.subItems.map((sub) => {
+                    const isSubActive = location.pathname === sub.href
+                    return (
+                      <Link
+                        key={sub.href}
+                        to={sub.href}
+                        className={cn(
+                          'flex items-center gap-3 rounded-md pl-11 pr-3 py-2 text-sm transition-colors',
+                          isSubActive
+                            ? 'bg-accent text-primary font-medium'
+                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                        )}
+                      >
+                        {sub.label}
+                      </Link>
+                    )
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
+            )
+          }
+
+          // Standard Item
           const isActive = location.pathname === item.href
           return (
             <Tooltip key={item.href} delayDuration={0}>
               <TooltipTrigger asChild>
                 <Link
-                  to={item.href}
+                  to={item.href || '#'}
                   className={cn(
                     'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors relative',
                     isActive

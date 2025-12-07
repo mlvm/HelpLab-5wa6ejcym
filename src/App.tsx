@@ -19,6 +19,7 @@ import WhatsappPanel from './pages/WhatsappPanel'
 import NotFound from './pages/NotFound'
 import Units from './pages/Units'
 import Instructors from './pages/Instructors'
+import Account from './pages/Account'
 
 const App = () => (
   <BrowserRouter
@@ -41,10 +42,16 @@ const App = () => (
           <Route path="/class/:id" element={<ClassDetails />} />
           <Route path="/appointments" element={<Appointments />} />
           <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/audit" element={<Audit />} />
           <Route path="/communications" element={<Communications />} />
-          <Route path="/my-history" element={<ProfessionalHistory />} />
+
+          {/* Settings Sub-routes */}
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/account" element={<Account />} />
+          <Route path="/settings/audit" element={<Audit />} />
+          <Route
+            path="/settings/my-history"
+            element={<ProfessionalHistory />}
+          />
         </Route>
 
         <Route path="*" element={<NotFound />} />
