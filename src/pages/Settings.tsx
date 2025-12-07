@@ -463,6 +463,22 @@ export default function Settings() {
                   </div>
                 )}
               </div>
+
+              {/* System Prompt */}
+              <div className="space-y-2 animate-fade-in">
+                <Label htmlFor="system-prompt">Prompt do Sistema</Label>
+                <Textarea
+                  id="system-prompt"
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="Defina as instruções principais e personalidade da IA..."
+                  className="min-h-[120px] font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Instruções para controlar o comportamento e o tom de voz do
+                  assistente.
+                </p>
+              </div>
             </CardContent>
           </Card>
 
