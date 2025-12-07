@@ -6,10 +6,23 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FileBarChart, Users, XCircle, MessageSquare } from 'lucide-react'
+import {
+  FileBarChart,
+  Users,
+  XCircle,
+  MessageSquare,
+  History,
+} from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 export default function Reports() {
   const reports = [
+    {
+      title: 'Histórico de Agendamentos',
+      desc: 'Histórico detalhado de agendamentos e mudanças de status por profissional.',
+      icon: History,
+      link: '/reports/professional-history',
+    },
     {
       title: 'Participação por Unidade',
       desc: 'Análise detalhada de presença agrupada por unidade de saúde.',
@@ -55,9 +68,15 @@ export default function Reports() {
               <CardDescription>{report.desc}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" className="w-full">
-                Gerar Relatório
-              </Button>
+              {report.link ? (
+                <Button asChild variant="outline" className="w-full">
+                  <Link to={report.link}>Visualizar Relatório</Link>
+                </Button>
+              ) : (
+                <Button variant="outline" className="w-full">
+                  Gerar Relatório
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}

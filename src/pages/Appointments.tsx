@@ -18,6 +18,7 @@ import {
   Pencil,
   Trash2,
   Tag,
+  Filter,
 } from 'lucide-react'
 import {
   Select,
@@ -27,7 +28,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
-import { DatePicker } from '@/components/ui/date-picker'
 import { DateRange } from 'react-day-picker'
 import { useClassStatus } from '@/contexts/ClassStatusContext'
 import { Button } from '@/components/ui/button'
@@ -44,7 +44,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu'
-import { format } from 'date-fns'
+import { format, isWithinInterval, startOfDay, endOfDay, parse } from 'date-fns'
 import {
   AppointmentFormDialog,
   AppointmentFormValues,
@@ -52,18 +52,27 @@ import {
 import { toast } from 'sonner'
 import { db, Appointment } from '@/services/database'
 import { notificationService } from '@/services/notification-service'
+import { INITIAL_TRAININGS } from './Trainings'
 
 export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
-  const [specificDate, setSpecificDate] = useState<Date | undefined>(undefined)
   const { statuses, getStatusColor } = useClassStatus()
   const [searchQuery, setSearchQuery] = useState('')
+
+  // New Filters
+  const [selectedProfessional, setSelectedProfessional] =
+    useState<string>('all')
+  const [selectedTraining, setSelectedTraining] = useState<string>('all')
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add')
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null)
+
+  // Derived lists for filters
+  const professionalsList = db.getProfessionals()
+  const trainingsList = INITIAL_TRAININGS
 
   // Load appointments from mock DB
   const refreshData = () => {
@@ -72,8 +81,6 @@ export default function Appointments() {
 
   useEffect(() => {
     refreshData()
-
-    // Listen to changes in other tabs (simulated by interval or event)
     const interval = setInterval(refreshData, 2000)
     return () => clearInterval(interval)
   }, [])
@@ -85,7 +92,6 @@ export default function Appointments() {
   }
 
   const handleEditClick = (appointment: Appointment) => {
-    // We need to fetch the professional details to populate the form
     const professional = db
       .getProfessionals()
       .find((p) => p.id === appointment.professionalId)
@@ -93,7 +99,7 @@ export default function Appointments() {
     setDialogMode('edit')
     setSelectedAppointment({
       ...appointment,
-      professional, // Pass the linked professional data
+      professional,
     })
     setDialogOpen(true)
   }
@@ -112,25 +118,20 @@ export default function Appointments() {
     refreshData()
     toast.success(`Status alterado para ${newStatus}`)
 
-    // Automatic Notification Logic
-    if (appointment) {
-      // Only notify on significant changes if needed, or always
-      if (oldStatus !== newStatus) {
-        const prof = db
-          .getProfessionals()
-          .find((p) => p.id === appointment.professionalId)
-        if (prof) {
-          await notificationService.sendNotification('status_change', {
-            professionalName: prof.name,
-            professionalPhone: prof.whatsapp,
-            professionalEmail: undefined, // Add email field to professional if available in future
-            trainingName: appointment.training,
-            appointmentDate: appointment.date,
-            appointmentId: appointment.id,
-            status: newStatus,
-          })
-          toast.success('Notificações enviadas (se configurado)')
-        }
+    if (appointment && oldStatus !== newStatus) {
+      const prof = db
+        .getProfessionals()
+        .find((p) => p.id === appointment.professionalId)
+      if (prof) {
+        await notificationService.sendNotification('status_change', {
+          professionalName: prof.name,
+          professionalPhone: prof.whatsapp,
+          trainingName: appointment.training,
+          appointmentDate: appointment.date,
+          appointmentId: appointment.id,
+          status: newStatus,
+        })
+        toast.success('Notificações enviadas (se configurado)')
       }
     }
   }
@@ -138,7 +139,6 @@ export default function Appointments() {
   const handleFormSubmit = async (data: AppointmentFormValues) => {
     try {
       if (dialogMode === 'add') {
-        // 1. Create or Update Professional
         const prof = db.upsertProfessional({
           name: data.prof,
           cpf: data.cpf,
@@ -147,7 +147,6 @@ export default function Appointments() {
           role: data.role,
         })
 
-        // 2. Create Appointment
         const appt = db.createAppointment({
           professionalId: prof.id,
           profName: prof.name,
@@ -158,8 +157,6 @@ export default function Appointments() {
         })
 
         toast.success('Novo agendamento criado com sucesso.')
-
-        // Send Notification
         await notificationService.sendNotification('confirmation', {
           professionalName: prof.name,
           professionalPhone: prof.whatsapp,
@@ -170,10 +167,7 @@ export default function Appointments() {
         })
         toast.success('Notificação de confirmação enviada!')
       } else if (dialogMode === 'edit' && selectedAppointment) {
-        // In edit mode, we typically update the appointment details
-        // Ideally we might also update professional details if they changed
         if (data.cpf) {
-          // Check if we have professional data to update
           db.upsertProfessional({
             name: data.prof,
             cpf: data.cpf,
@@ -195,7 +189,6 @@ export default function Appointments() {
           channel: data.channel,
           status: data.status,
         })
-
         toast.success('Agendamento atualizado com sucesso.')
       }
       refreshData()
@@ -215,7 +208,31 @@ export default function Appointments() {
     ) {
       return false
     }
-    // Date filter can be added here
+
+    // Professional Filter
+    if (
+      selectedProfessional !== 'all' &&
+      apt.professionalId !== selectedProfessional
+    ) {
+      return false
+    }
+
+    // Training Type Filter
+    if (selectedTraining !== 'all' && apt.training !== selectedTraining) {
+      return false
+    }
+
+    // Date Range Filter
+    if (dateRange?.from) {
+      const aptDate = parse(apt.date, 'dd/MM/yyyy', new Date())
+      const start = startOfDay(dateRange.from)
+      const end = endOfDay(dateRange.to || dateRange.from)
+
+      if (!isWithinInterval(aptDate, { start, end })) {
+        return false
+      }
+    }
+
     return true
   })
 
@@ -237,36 +254,59 @@ export default function Appointments() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col xl:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por profissional ou treinamento..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+          <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row gap-4">
-              <DatePicker
-                date={specificDate}
-                setDate={setSpecificDate}
-                placeholder="Data Específica"
-                className="w-[180px]"
-              />
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
               <DateRangePicker
                 date={dateRange}
                 setDate={setDateRange}
-                className="w-auto"
+                className="w-full md:w-[240px]"
               />
-              <Select defaultValue="whatsapp">
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Canal" />
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
+                <Filter className="h-4 w-4" /> Filtros Avançados:
+              </div>
+              <Select
+                value={selectedProfessional}
+                onValueChange={setSelectedProfessional}
+              >
+                <SelectTrigger className="w-full md:w-[240px]">
+                  <SelectValue placeholder="Filtrar por Profissional" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  <SelectItem value="web">Web</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="all">Todos Profissionais</SelectItem>
+                  {professionalsList.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={selectedTraining}
+                onValueChange={setSelectedTraining}
+              >
+                <SelectTrigger className="w-full md:w-[240px]">
+                  <SelectValue placeholder="Tipo de Treinamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Treinamentos</SelectItem>
+                  {trainingsList.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

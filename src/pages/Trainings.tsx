@@ -26,7 +26,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
-const INITIAL_TRAININGS: Training[] = [
+export const INITIAL_TRAININGS: Training[] = [
   {
     id: 1,
     name: 'Biossegurança Básica',
@@ -34,6 +34,7 @@ const INITIAL_TRAININGS: Training[] = [
     capacity: 30,
     status: 'Ativo',
     description: 'Curso introdutório sobre biossegurança.',
+    instructor: 'Dr. Silva',
   },
   {
     id: 2,
@@ -42,6 +43,7 @@ const INITIAL_TRAININGS: Training[] = [
     capacity: 20,
     status: 'Ativo',
     description: 'Técnicas avançadas de primeiros socorros.',
+    instructor: 'Enf. Maria',
   },
   {
     id: 3,
@@ -50,6 +52,7 @@ const INITIAL_TRAININGS: Training[] = [
     capacity: 25,
     status: 'Inativo',
     description: 'Gerenciamento adequado de resíduos de saúde.',
+    instructor: 'Eng. Roberto',
   },
   {
     id: 4,
@@ -58,6 +61,7 @@ const INITIAL_TRAININGS: Training[] = [
     capacity: 30,
     status: 'Ativo',
     description: 'Procedimentos para coleta segura.',
+    instructor: 'Bio. Carla',
   },
 ]
 
@@ -159,6 +163,7 @@ export default function Trainings() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Instrutor</TableHead>
                 <TableHead>Carga Horária</TableHead>
                 <TableHead>Capacidade</TableHead>
                 <TableHead>Status</TableHead>
@@ -170,8 +175,14 @@ export default function Trainings() {
                 filteredTrainings.map((training) => (
                   <TableRow key={training.id}>
                     <TableCell className="font-medium">
-                      {training.name}
+                      <div className="flex flex-col">
+                        <span>{training.name}</span>
+                        <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {training.description}
+                        </span>
+                      </div>
                     </TableCell>
+                    <TableCell>{training.instructor || '-'}</TableCell>
                     <TableCell>{training.hours}</TableCell>
                     <TableCell>{training.capacity} alunos</TableCell>
                     <TableCell>
@@ -222,7 +233,7 @@ export default function Trainings() {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="h-24 text-center text-muted-foreground"
                   >
                     Nenhum treinamento encontrado.

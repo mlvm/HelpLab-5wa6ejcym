@@ -27,6 +27,7 @@ const formSchema = z.object({
   hours: z.string().min(1, 'Carga horária é obrigatória'),
   capacity: z.coerce.number().min(1, 'Capacidade deve ser maior que 0'),
   description: z.string().optional(),
+  instructor: z.string().optional(),
 })
 
 export type TrainingFormValues = z.infer<typeof formSchema>
@@ -53,6 +54,7 @@ export function TrainingFormDialog({
       hours: '',
       capacity: 0,
       description: '',
+      instructor: '',
     },
   })
 
@@ -64,6 +66,7 @@ export function TrainingFormDialog({
           hours: '',
           capacity: 0,
           description: '',
+          instructor: '',
         })
       } else if (training) {
         form.reset({
@@ -71,6 +74,7 @@ export function TrainingFormDialog({
           hours: training.hours,
           capacity: training.capacity,
           description: training.description || '',
+          instructor: training.instructor || '',
         })
       }
     }
@@ -143,6 +147,23 @@ export function TrainingFormDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="instructor"
+              render={({ field }) => (
+                <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+                  <FormLabel className="text-right">Instrutor</FormLabel>
+                  <div className="col-span-3">
+                    <FormControl>
+                      <Input placeholder="Ex: Dr. Silva" {...field} />
+                    </FormControl>
+                    <FormMessage className="mt-1" />
+                  </div>
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="description"

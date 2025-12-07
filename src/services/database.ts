@@ -11,6 +11,12 @@ export interface Professional {
   updatedAt: string
 }
 
+export interface AppointmentHistory {
+  status: string
+  timestamp: string
+  updatedBy: string
+}
+
 export interface Appointment {
   id: number
   professionalId: string
@@ -20,6 +26,7 @@ export interface Appointment {
   channel: string
   status: string
   createdAt: string
+  history: AppointmentHistory[]
 }
 
 class DatabaseService {
@@ -94,6 +101,18 @@ class DatabaseService {
         channel: 'WhatsApp',
         status: 'Confirmado',
         createdAt: new Date().toISOString(),
+        history: [
+          {
+            status: 'Agendado',
+            timestamp: new Date(Date.now() - 86400000).toISOString(),
+            updatedBy: 'Sistema',
+          },
+          {
+            status: 'Confirmado',
+            timestamp: new Date().toISOString(),
+            updatedBy: 'Admin',
+          },
+        ],
       },
       {
         id: 2,
@@ -104,6 +123,13 @@ class DatabaseService {
         channel: 'WhatsApp',
         status: 'Confirmado',
         createdAt: new Date().toISOString(),
+        history: [
+          {
+            status: 'Confirmado',
+            timestamp: new Date().toISOString(),
+            updatedBy: 'Sistema',
+          },
+        ],
       },
     ]
 
@@ -184,6 +210,7 @@ class DatabaseService {
       formattedDate = data.date
     }
 
+    const now = new Date().toISOString()
     const newId = Math.max(0, ...this.appointments.map((a) => a.id)) + 1
     const newAppt: Appointment = {
       id: newId,
@@ -193,7 +220,14 @@ class DatabaseService {
       date: formattedDate,
       channel: data.channel,
       status: data.status,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      history: [
+        {
+          status: data.status,
+          timestamp: now,
+          updatedBy: 'Sistema',
+        },
+      ],
     }
 
     this.appointments = [newAppt, ...this.appointments]
@@ -202,8 +236,24 @@ class DatabaseService {
   }
 
   updateAppointment(id: number, updates: Partial<Appointment>) {
+    const appointment = this.appointments.find((a) => a.id === id)
+    if (!appointment) return
+
+    // If status changed, add to history
+    let newHistory = appointment.history || []
+    if (updates.status && updates.status !== appointment.status) {
+      newHistory = [
+        ...newHistory,
+        {
+          status: updates.status,
+          timestamp: new Date().toISOString(),
+          updatedBy: 'Admin',
+        },
+      ]
+    }
+
     this.appointments = this.appointments.map((a) =>
-      a.id === id ? { ...a, ...updates } : a,
+      a.id === id ? { ...a, ...updates, history: newHistory } : a,
     )
     this.save()
   }

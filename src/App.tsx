@@ -21,6 +21,7 @@ import Units from './pages/Units'
 import Instructors from './pages/Instructors'
 import Account from './pages/Account'
 import ClassStatusSettings from './pages/ClassStatusSettings'
+import ProfessionalReport from './pages/ProfessionalReport'
 import { ClassStatusProvider } from '@/contexts/ClassStatusContext'
 
 const App = () => (
@@ -45,6 +46,10 @@ const App = () => (
             <Route path="/class/:id" element={<ClassDetails />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/reports" element={<Reports />} />
+            <Route
+              path="/reports/professional-history"
+              element={<ProfessionalReport />}
+            />
             <Route path="/communications" element={<Communications />} />
 
             {/* Settings Sub-routes */}

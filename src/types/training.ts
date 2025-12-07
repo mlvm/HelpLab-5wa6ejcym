@@ -7,4 +7,5 @@ export interface Training {
   capacity: number
   status: TrainingStatus
   description?: string
+  instructor?: string
 }
