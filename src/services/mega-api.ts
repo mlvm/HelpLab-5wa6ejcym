@@ -8,12 +8,18 @@ import {
 import { supabaseEdgeFunctions } from './supabase-edge-functions'
 
 // Service simulating Mega API interactions with "Real" capabilities
-// Updated to integrate with Supabase Edge Functions for ChatGPT responses
+// Updated to integrate with Supabase Edge Functions for ChatGPT/Gemini responses
+
+export type AIProvider = 'chatgpt' | 'gemini'
 
 class MegaApiService {
   private apiKey: string | null = null
   private webhookUrl: string | null = null
-  private openaiApiKey: string | null = null // Secure storage simulation
+  private openaiApiKey: string | null = null
+  private geminiApiKey: string | null = null
+  private aiProvider: AIProvider = 'chatgpt'
+  private aiModel: string = 'gpt-4o-mini'
+
   private isConnected = false
   private conversations: WhatsappConversation[] = []
   private messages: Record<string, WhatsappMessage[]> = {}
@@ -25,10 +31,16 @@ class MegaApiService {
     const storedKey = localStorage.getItem('mega_api_key')
     const storedUrl = localStorage.getItem('mega_webhook_url')
     const storedOpenAiKey = localStorage.getItem('openai_api_key')
+    const storedGeminiKey = localStorage.getItem('gemini_api_key')
+    const storedProvider = localStorage.getItem('ai_provider') as AIProvider
+    const storedModel = localStorage.getItem('ai_model')
 
     if (storedKey) this.apiKey = storedKey
     if (storedUrl) this.webhookUrl = storedUrl
     if (storedOpenAiKey) this.openaiApiKey = storedOpenAiKey
+    if (storedGeminiKey) this.geminiApiKey = storedGeminiKey
+    if (storedProvider) this.aiProvider = storedProvider
+    if (storedModel) this.aiModel = storedModel
 
     // Initialize with seed data if empty (Simulating DB fetch)
     if (Object.keys(this.messages).length === 0) {
@@ -43,6 +55,9 @@ class MegaApiService {
     apiKey: string,
     webhookUrl: string,
     openaiApiKey: string,
+    geminiApiKey: string,
+    aiProvider: AIProvider,
+    aiModel: string,
   ): Promise<boolean> {
     // Simulate secure storage
     return new Promise((resolve) => {
@@ -50,10 +65,16 @@ class MegaApiService {
         this.apiKey = apiKey
         this.webhookUrl = webhookUrl
         this.openaiApiKey = openaiApiKey
+        this.geminiApiKey = geminiApiKey
+        this.aiProvider = aiProvider
+        this.aiModel = aiModel
 
         localStorage.setItem('mega_api_key', apiKey)
         localStorage.setItem('mega_webhook_url', webhookUrl)
-        localStorage.setItem('openai_api_key', openaiApiKey) // In real app: Supabase Vault
+        localStorage.setItem('openai_api_key', openaiApiKey)
+        localStorage.setItem('gemini_api_key', geminiApiKey)
+        localStorage.setItem('ai_provider', aiProvider)
+        localStorage.setItem('ai_model', aiModel)
 
         resolve(true)
       }, 800)
@@ -65,6 +86,9 @@ class MegaApiService {
       apiKey: this.apiKey,
       webhookUrl: this.webhookUrl,
       openaiApiKey: this.openaiApiKey,
+      geminiApiKey: this.geminiApiKey,
+      aiProvider: this.aiProvider,
+      aiModel: this.aiModel,
     }
   }
 
@@ -164,7 +188,9 @@ class MegaApiService {
           conteudo: content,
           criadoEm: new Date().toISOString(),
           intencaoDetectada:
-            sender === 'USUARIO' ? 'Processando com ChatGPT...' : undefined,
+            sender === 'USUARIO'
+              ? `Processando com ${this.aiProvider === 'gemini' ? 'Gemini' : 'ChatGPT'}...`
+              : undefined,
           status: 'sent',
         }
 
@@ -180,7 +206,7 @@ class MegaApiService {
         this.notifyListeners()
         resolve(newMessage)
 
-        // Trigger ChatGPT Response via Edge Function if User sent message
+        // Trigger AI Response via Edge Function if User sent message
         if (sender === 'USUARIO') {
           this.triggerBotResponse(conversationId, content)
         }
@@ -192,32 +218,42 @@ class MegaApiService {
     conversationId: string,
     userContent: string,
   ) {
-    if (!this.openaiApiKey) {
-      console.warn('ChatGPT API Key missing. Bot cannot reply.')
+    // Check for appropriate API key based on provider
+    const hasKey =
+      this.aiProvider === 'gemini' ? !!this.geminiApiKey : !!this.openaiApiKey
+
+    if (!hasKey) {
+      console.warn(
+        `${this.aiProvider === 'gemini' ? 'Gemini' : 'ChatGPT'} API Key missing. Bot cannot reply.`,
+      )
       return
     }
 
     try {
-      // Call Supabase Edge Function to get ChatGPT response
-      const gptResponse = await supabaseEdgeFunctions.invokeChatGPT(userContent)
+      // Call Supabase Edge Function to get AI response
+      const aiResponse = await supabaseEdgeFunctions.invokeAI(
+        userContent,
+        this.aiProvider,
+        this.aiModel,
+      )
 
       const botMessage: WhatsappMessage = {
         id: `m${Date.now()}_bot`,
         conversaId: conversationId,
         remetente: 'BOT',
-        conteudo: gptResponse.text,
+        conteudo: aiResponse.text,
         criadoEm: new Date().toISOString(),
-        acaoExecutadaPeloBot: gptResponse.action
-          ? `ChatGPT: ${gptResponse.action}`
-          : 'ChatGPT: Resposta Gerada',
-        intencaoDetectada: `Modelo: ${gptResponse.model}`,
+        acaoExecutadaPeloBot: aiResponse.action
+          ? `${this.aiProvider === 'gemini' ? 'Gemini' : 'ChatGPT'}: ${aiResponse.action}`
+          : 'Resposta Gerada',
+        intencaoDetectada: `Modelo: ${aiResponse.model}`,
       }
 
       this.messages[conversationId].push(botMessage)
       this.updateConversationPreview(conversationId, botMessage)
       this.notifyListeners()
     } catch (error) {
-      console.error('Failed to get ChatGPT response:', error)
+      console.error('Failed to get AI response:', error)
       // Fallback error message
       const errorMessage: WhatsappMessage = {
         id: `m${Date.now()}_err`,

@@ -10,6 +10,7 @@ import {
   Profissional,
   AgendamentoResumo,
 } from '@/pages/WhatsappPanel.data'
+import { megaApi } from '@/services/mega-api'
 
 interface WhatsappContextPanelProps {
   conversation: WhatsappConversation | undefined
@@ -28,6 +29,8 @@ export function WhatsappContextPanel({
   notes,
   setNotes,
 }: WhatsappContextPanelProps) {
+  const creds = megaApi.getCredentials()
+
   return (
     <div className="md:col-span-3 flex flex-col gap-4 h-full border-l pl-4">
       <ScrollArea className="h-full -mr-3 pr-3">
@@ -40,9 +43,11 @@ export function WhatsappContextPanel({
             <div className="grid grid-cols-2 gap-2 text-muted-foreground">
               <div>
                 <span className="block font-medium text-foreground">
-                  Mega API
+                  Provider
                 </span>
-                <span>Status: Ativo</span>
+                <span className="uppercase">
+                  {creds.aiProvider || 'ChatGPT'}
+                </span>
               </div>
               <div>
                 <span className="block font-medium text-foreground">
@@ -58,7 +63,9 @@ export function WhatsappContextPanel({
               </div>
               <div>
                 <span className="block font-medium text-foreground">Model</span>
-                <span>v3.5-turbo</span>
+                <span className="truncate" title={creds.aiModel}>
+                  {creds.aiModel || 'gpt-4o-mini'}
+                </span>
               </div>
             </div>
           </div>

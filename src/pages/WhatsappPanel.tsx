@@ -6,6 +6,7 @@ import {
   WifiOff,
   AlertTriangle,
   Zap,
+  Cpu,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -31,7 +32,7 @@ import {
 import { WhatsappConversationList } from '@/components/whatsapp/WhatsappConversationList'
 import { WhatsappChatWindow } from '@/components/whatsapp/WhatsappChatWindow'
 import { WhatsappContextPanel } from '@/components/whatsapp/WhatsappContextPanel'
-import { megaApi } from '@/services/mega-api'
+import { megaApi, AIProvider } from '@/services/mega-api'
 
 export default function WhatsappPanel() {
   const [selectedConversationId, setSelectedConversationId] = useState<
@@ -43,6 +44,8 @@ export default function WhatsappPanel() {
   const [missingConfig, setMissingConfig] = useState(false)
   const [conversations, setConversations] = useState<WhatsappConversation[]>([])
   const [messages, setMessages] = useState<WhatsappMessage[]>([])
+  const [currentProvider, setCurrentProvider] = useState<AIProvider>('chatgpt')
+
   const { toast } = useToast()
 
   // Initial Load & Connection
@@ -51,9 +54,14 @@ export default function WhatsappPanel() {
       try {
         // Check for credentials first
         const creds = megaApi.getCredentials()
+        setCurrentProvider(creds.aiProvider || 'chatgpt')
 
-        // Now requires both Mega API Key and OpenAI API Key for full functionality
-        if (!creds.apiKey || !creds.openaiApiKey) {
+        // Check if at least one valid AI config exists (provider + key)
+        const hasAiConfig =
+          (creds.aiProvider === 'chatgpt' && creds.openaiApiKey) ||
+          (creds.aiProvider === 'gemini' && creds.geminiApiKey)
+
+        if (!creds.apiKey || !hasAiConfig) {
           setMissingConfig(true)
           setIsLoading(false)
           return
@@ -91,6 +99,10 @@ export default function WhatsappPanel() {
       const updatedConvs = await megaApi.getConversations()
       setConversations(updatedConvs)
 
+      // Update provider if changed in settings
+      const creds = megaApi.getCredentials()
+      if (creds.aiProvider) setCurrentProvider(creds.aiProvider)
+
       if (selectedConversationId) {
         const updatedMsgs = await megaApi.getMessages(selectedConversationId)
         setMessages(updatedMsgs)
@@ -125,7 +137,7 @@ export default function WhatsappPanel() {
           setIsWhatsappConnected(true)
           toast({
             title: 'Conectado',
-            description: 'Serviço de Mensagens e ChatGPT ativos.',
+            description: 'Serviço de Mensagens e IA ativos.',
           })
         } else {
           toast({
@@ -186,8 +198,7 @@ export default function WhatsappPanel() {
           <h2 className="text-xl font-bold">Configuração Necessária</h2>
           <p className="text-muted-foreground text-sm">
             Para utilizar o painel inteligente, é necessário configurar as
-            credenciais da <strong>Mega API</strong> e do{' '}
-            <strong>ChatGPT</strong>.
+            credenciais da <strong>Mega API</strong> e do <strong>IA</strong>.
           </p>
           <Button asChild>
             <Link to="/settings">Configurar Integrações</Link>
@@ -237,8 +248,23 @@ export default function WhatsappPanel() {
               </Label>
             </div>
             {isWhatsappConnected && (
-              <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-50 border border-green-200 text-green-700 text-xs font-medium">
-                <Zap className="h-3 w-3 fill-green-700" /> ChatGPT Ativo
+              <div
+                className={cn(
+                  'hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs font-medium transition-colors',
+                  currentProvider === 'gemini'
+                    ? 'bg-purple-50 border-purple-200 text-purple-700'
+                    : 'bg-green-50 border-green-200 text-green-700',
+                )}
+              >
+                {currentProvider === 'gemini' ? (
+                  <>
+                    <Cpu className="h-3 w-3" /> Gemini Ativo
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-3 w-3" /> ChatGPT Ativo
+                  </>
+                )}
               </div>
             )}
           </div>
