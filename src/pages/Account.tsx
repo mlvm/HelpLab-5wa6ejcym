@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import {
   Loader2,
-  Save,
   User,
   Shield,
   Lock,
@@ -46,6 +45,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Label } from '@/components/ui/label'
 
 const personalDataSchema = z.object({
   name: z.string().min(2, 'Nome muito curto'),
@@ -89,33 +89,35 @@ export default function Account() {
     },
   })
 
-  useEffect(() => {
-    loadProfile()
-  }, [])
+  const { reset: resetPersonalForm } = personalForm
 
-  const loadProfile = async () => {
-    setIsLoading(true)
-    try {
-      const data = await profileService.getProfile()
-      if (data) {
-        setProfile(data)
-        personalForm.reset({
-          name: data.name,
-          cpf: data.cpf,
-          phone: data.phone || '',
-          unit: data.unit || '',
+  useEffect(() => {
+    const loadProfile = async () => {
+      setIsLoading(true)
+      try {
+        const data = await profileService.getProfile()
+        if (data) {
+          setProfile(data)
+          resetPersonalForm({
+            name: data.name,
+            cpf: data.cpf,
+            phone: data.phone || '',
+            unit: data.unit || '',
+          })
+        }
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao carregar perfil',
+          description: 'Não foi possível buscar seus dados.',
         })
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao carregar perfil',
-        description: 'Não foi possível buscar seus dados.',
-      })
-    } finally {
-      setIsLoading(false)
     }
-  }
+
+    loadProfile()
+  }, [resetPersonalForm, toast])
 
   const onPersonalSubmit = async (data: z.infer<typeof personalDataSchema>) => {
     setIsSaving(true)
