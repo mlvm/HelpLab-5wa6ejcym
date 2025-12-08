@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
     const { action, payload } = await req.json()
 
     if (action === 'test') {
-      const targetUrl = `${webhookUrl}/v1/status?key=${apiKey}`
+      const targetUrl = `${webhookUrl}/v1/status`
 
       try {
         const response = await fetch(targetUrl, {
@@ -73,7 +73,7 @@ Deno.serve(async (req: Request) => {
           return new Response(
             JSON.stringify({
               success: false,
-              message: 'Falha ao contatar servidor proxy (Edge Function)', // Reusing message for consistency if upstream fails
+              message: 'Falha ao contatar servidor proxy (Edge Function)',
               data,
               upstreamStatus: response.status,
             }),
@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
           JSON.stringify({
             success: false,
             error: e.message,
-            message: 'Falha ao contatar servidor proxy (Edge Function)', // Consistent error message
+            message: 'Falha ao contatar servidor proxy (Edge Function)',
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
