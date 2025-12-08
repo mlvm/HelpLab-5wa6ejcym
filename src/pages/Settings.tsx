@@ -13,6 +13,9 @@ import {
   Mail,
   MessageSquare,
   Edit,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -105,9 +108,7 @@ const GEMINI_MODELS = [
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('integrations')
 
-  // Mega & AI Config
-  const [megaApiKey, setMegaApiKey] = useState('')
-  const [megaWebhookUrl, setMegaWebhookUrl] = useState('')
+  // AI Config
   const [openaiApiKey, setOpenaiApiKey] = useState('')
   const [geminiApiKey, setGeminiApiKey] = useState('')
   const [aiProvider, setAiProvider] = useState<AIProvider>('chatgpt')
@@ -134,6 +135,13 @@ export default function Settings() {
     },
   })
 
+  // Mega Status
+  const [megaStatus, setMegaStatus] = useState<'connected' | 'error' | 'idle'>(
+    'idle',
+  )
+  const [megaMessage, setMegaMessage] = useState('')
+  const [isCheckingMega, setIsCheckingMega] = useState(false)
+
   // Email Config
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
     host: '',
@@ -156,10 +164,8 @@ export default function Settings() {
   const { toast } = useToast()
 
   useEffect(() => {
-    // Load AI/Mega Config
+    // Load AI Config
     const creds = megaApi.getCredentials()
-    if (creds.apiKey) setMegaApiKey(creds.apiKey)
-    if (creds.webhookUrl) setMegaWebhookUrl(creds.webhookUrl)
     if (creds.openaiApiKey) setOpenaiApiKey(creds.openaiApiKey)
     if (creds.geminiApiKey) setGeminiApiKey(creds.geminiApiKey)
     if (creds.aiProvider) setAiProvider(creds.aiProvider)
@@ -170,6 +176,9 @@ export default function Settings() {
     // Load Email & Templates
     setEmailConfig(notificationService.getEmailConfig())
     setTemplates(notificationService.getTemplates())
+
+    // Initial check for Mega
+    checkMegaConnection()
   }, [])
 
   useEffect(() => {
@@ -182,16 +191,26 @@ export default function Settings() {
     }
   }, [aiProvider, aiModel])
 
+  const checkMegaConnection = async () => {
+    setIsCheckingMega(true)
+    setMegaStatus('idle')
+    try {
+      const result = await megaApi.testConnection()
+      setMegaStatus(result.success ? 'connected' : 'error')
+      setMegaMessage(result.message)
+    } catch (e) {
+      setMegaStatus('error')
+      setMegaMessage('Falha ao conectar')
+    } finally {
+      setIsCheckingMega(false)
+    }
+  }
+
   const handleSave = async () => {
     setIsLoading(true)
     try {
       if (activeTab === 'integrations') {
-        if (!megaApiKey || !megaWebhookUrl) {
-          throw new Error('Mega API fields are required')
-        }
         await megaApi.updateConfiguration(
-          megaApiKey,
-          megaWebhookUrl,
           openaiApiKey,
           geminiApiKey,
           aiProvider,
@@ -204,7 +223,6 @@ export default function Settings() {
         notificationService.saveEmailConfig(emailConfig)
         toast({ title: 'Configurações de Email salvas com sucesso.' })
       } else if (activeTab === 'templates') {
-        // Templates are saved individually via dialog
         toast({ title: 'Modelos gerenciados individualmente.' })
       }
     } catch (error) {
@@ -232,8 +250,6 @@ export default function Settings() {
     setTestResults([])
     try {
       await megaApi.updateConfiguration(
-        megaApiKey,
-        megaWebhookUrl,
         openaiApiKey,
         geminiApiKey,
         aiProvider,
@@ -304,39 +320,79 @@ export default function Settings() {
 
         {/* --- INTEGRATIONS TAB --- */}
         <TabsContent value="integrations" className="space-y-6">
-          <Card>
+          <Card className="border-l-4 border-l-blue-600">
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Server className="h-5 w-5 text-primary" />
-                <CardTitle>Mega API (WhatsApp)</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Server className="h-5 w-5 text-blue-600" />
+                  <CardTitle>Mega API (WhatsApp)</CardTitle>
+                </div>
+                <Badge
+                  variant={
+                    megaStatus === 'connected' ? 'default' : 'destructive'
+                  }
+                  className={cn(
+                    'transition-colors',
+                    megaStatus === 'connected' ? 'bg-green-600' : 'bg-red-600',
+                  )}
+                >
+                  {megaStatus === 'connected' ? 'Conectado' : 'Desconectado'}
+                </Badge>
               </div>
               <CardDescription>
-                Gateway de mensagens para envio e recebimento via WhatsApp.
+                Conexão segura via Supabase Edge Functions.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="api-key">API Key da Mega</Label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="api-key"
-                    type="password"
-                    placeholder="mega_live_..."
-                    className="pl-9"
-                    value={megaApiKey}
-                    onChange={(e) => setMegaApiKey(e.target.value)}
-                  />
+              <div className="rounded-lg bg-muted p-4 border border-border">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1">
+                    {megaStatus === 'connected' ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-600" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-semibold text-sm">Status da Conexão</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {megaMessage || 'Verificando status...'}
+                    </p>
+                    {megaStatus === 'error' && (
+                      <p className="text-xs text-red-500 mt-2">
+                        Certifique-se de adicionar <code>MEGA_API_KEY</code> e{' '}
+                        <code>MEGA_WEBHOOK_URL</code> nos segredos do projeto no
+                        Supabase.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="webhook-url">URL do Webhook</Label>
-                <Input
-                  id="webhook-url"
-                  placeholder="https://api.helplab.com.br/webhooks/whatsapp"
-                  value={megaWebhookUrl}
-                  onChange={(e) => setMegaWebhookUrl(e.target.value)}
-                />
+
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={checkMegaConnection}
+                    disabled={isCheckingMega}
+                  >
+                    {isCheckingMega ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Zap className="h-4 w-4 mr-2" />
+                    )}
+                    Testar Conexão Real
+                  </Button>
+                  <Button variant="ghost" size="sm" asChild>
+                    <a
+                      href="https://supabase.com/dashboard/project/_/settings/secrets"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Gerenciar Segredos{' '}
+                      <ExternalLink className="h-3 w-3 ml-2" />
+                    </a>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

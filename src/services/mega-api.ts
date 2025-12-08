@@ -7,11 +7,11 @@ import {
 } from '@/pages/WhatsappPanel.data'
 import { supabaseEdgeFunctions } from './supabase-edge-functions'
 import { db } from './database'
-import { notificationService } from './notification-service' // Integration for logging
+import { notificationService } from './notification-service'
+import { supabase } from '@/lib/supabase/client'
 
 export type AIProvider = 'chatgpt' | 'gemini'
 
-// ... (Existing types unchanged)
 export interface UsageLimits {
   monthlyInteractions: number
   tokensPerResponse: number
@@ -31,9 +31,7 @@ export interface TestResult {
 }
 
 class MegaApiService {
-  // ... (Existing properties unchanged)
-  private apiKey: string | null = null
-  private webhookUrl: string | null = null
+  // Mega credentials are now managed via Supabase Secrets
   private openaiApiKey: string | null = null
   private geminiApiKey: string | null = null
   private aiProvider: AIProvider = 'chatgpt'
@@ -65,9 +63,6 @@ class MegaApiService {
   private pollingInterval: NodeJS.Timeout | null = null
 
   constructor() {
-    // Load persisted config (unchanged)
-    const storedKey = localStorage.getItem('mega_api_key')
-    const storedUrl = localStorage.getItem('mega_webhook_url')
     const storedOpenAiKey = localStorage.getItem('openai_api_key')
     const storedGeminiKey = localStorage.getItem('gemini_api_key')
     const storedProvider = localStorage.getItem('ai_provider') as AIProvider
@@ -75,8 +70,6 @@ class MegaApiService {
     const storedPrompt = localStorage.getItem('ai_system_prompt')
     const storedLimits = localStorage.getItem('ai_usage_limits')
 
-    if (storedKey) this.apiKey = storedKey
-    if (storedUrl) this.webhookUrl = storedUrl
     if (storedOpenAiKey) this.openaiApiKey = storedOpenAiKey
     if (storedGeminiKey) this.geminiApiKey = storedGeminiKey
     if (storedProvider) this.aiProvider = storedProvider
@@ -96,16 +89,14 @@ class MegaApiService {
       }
     }
 
+    // Initialize with seed data if empty
     if (Object.keys(this.messages).length === 0) {
       this.messages = JSON.parse(JSON.stringify(SEED_MESSAGES))
       this.conversations = [...SEED_CONVERSATIONS]
     }
   }
 
-  // ... (Configuration methods unchanged)
   async updateConfiguration(
-    apiKey: string,
-    webhookUrl: string,
     openaiApiKey: string,
     geminiApiKey: string,
     aiProvider: AIProvider,
@@ -115,8 +106,6 @@ class MegaApiService {
   ): Promise<boolean> {
     return new Promise((resolve) => {
       setTimeout(() => {
-        this.apiKey = apiKey
-        this.webhookUrl = webhookUrl
         this.openaiApiKey = openaiApiKey
         this.geminiApiKey = geminiApiKey
         this.aiProvider = aiProvider
@@ -124,8 +113,6 @@ class MegaApiService {
         this.systemPrompt = systemPrompt
         this.limits = limits
 
-        localStorage.setItem('mega_api_key', apiKey)
-        localStorage.setItem('mega_webhook_url', webhookUrl)
         localStorage.setItem('openai_api_key', openaiApiKey)
         localStorage.setItem('gemini_api_key', geminiApiKey)
         localStorage.setItem('ai_provider', aiProvider)
@@ -134,14 +121,12 @@ class MegaApiService {
         localStorage.setItem('ai_usage_limits', JSON.stringify(limits))
 
         resolve(true)
-      }, 800)
+      }, 500)
     })
   }
 
   getCredentials() {
     return {
-      apiKey: this.apiKey,
-      webhookUrl: this.webhookUrl,
       openaiApiKey: this.openaiApiKey,
       geminiApiKey: this.geminiApiKey,
       aiProvider: this.aiProvider,
@@ -151,18 +136,44 @@ class MegaApiService {
     }
   }
 
-  // ... (Connection methods unchanged)
-  async testConnection(key: string): Promise<boolean> {
-    console.log('Testing connection with key:', key)
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (key && key.length > 10) {
-          resolve(true)
-        } else {
-          reject(new Error('Invalid API Key format'))
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    console.log('Testing connection via Edge Function...')
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'mega-api-proxy',
+        {
+          body: { action: 'test' },
+        },
+      )
+
+      if (error) {
+        console.error('Edge Function Error:', error)
+        return { success: false, message: 'Falha ao contatar servidor proxy' }
+      }
+
+      if (data?.error && data?.configured === false) {
+        return {
+          success: false,
+          message:
+            'Credenciais não configuradas no Supabase Secrets (MEGA_API_KEY)',
         }
-      }, 1500)
-    })
+      }
+
+      if (data?.success) {
+        this.isConnected = true
+        this.startWebhookSimulation()
+        this.notifyListeners()
+        return { success: true, message: 'Conexão estabelecida com sucesso!' }
+      } else {
+        return {
+          success: false,
+          message: data?.message || 'Erro ao conectar com API Mega',
+        }
+      }
+    } catch (e: any) {
+      console.error('Connection Test Exception:', e)
+      return { success: false, message: e.message || 'Erro desconhecido' }
+    }
   }
 
   async runComparativeTest(): Promise<TestResult[]> {
@@ -228,44 +239,12 @@ class MegaApiService {
     return results
   }
 
-  async connect(): Promise<boolean> {
-    if (!this.apiKey) {
-      console.warn('Cannot connect: No API Key configured')
-      return false
-    }
-
-    console.log('Connecting to Mega API...')
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        this.isConnected = true
-        this.startWebhookSimulation()
-        this.notifyListeners()
-        resolve(true)
-      }, 1000)
-    })
-  }
-
-  async disconnect(): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        this.isConnected = false
-        this.stopWebhookSimulation()
-        this.notifyListeners()
-        resolve()
-      }, 500)
-    })
-  }
-
   getConnectionStatus(): boolean {
     return this.isConnected
   }
 
   // ... (Data Fetching methods unchanged)
   async getConversations(): Promise<WhatsappConversation[]> {
-    if (!this.isConnected) {
-      return []
-    }
-
     return new Promise((resolve) => {
       setTimeout(() => {
         const sorted = [...this.conversations].sort(
@@ -279,16 +258,12 @@ class MegaApiService {
   }
 
   async getMessages(conversationId: string): Promise<WhatsappMessage[]> {
-    if (!this.isConnected) return []
-
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve(this.messages[conversationId] || [])
       }, 300)
     })
   }
-
-  // ... (Messaging & AI methods updated for storage)
 
   async findOrCreateConversation(
     phoneNumber: string,
@@ -322,9 +297,9 @@ class MegaApiService {
   ) {
     if (!phoneNumber) return
 
-    // Ensure connection is simulated if not explicit
+    // Ensure connection is active (or try to connect)
     if (!this.isConnected) {
-      this.isConnected = true
+      await this.testConnection()
     }
 
     const conversationId = await this.findOrCreateConversation(
@@ -344,10 +319,6 @@ class MegaApiService {
   ) {
     if (!phoneNumber) return
 
-    if (!this.isConnected) {
-      this.isConnected = true
-    }
-
     const conversationId = await this.findOrCreateConversation(
       phoneNumber,
       professionalName,
@@ -361,7 +332,20 @@ class MegaApiService {
     content: string,
     sender: ChatSender = 'USUARIO',
   ): Promise<WhatsappMessage> {
-    if (!this.isConnected) throw new Error('Not connected to Mega API')
+    // Attempt real send via proxy if it is a BOT message or if we are connected
+    if (this.isConnected && sender === 'BOT') {
+      try {
+        await supabase.functions.invoke('mega-api-proxy', {
+          body: {
+            action: 'send',
+            payload: { conversationId, content },
+          },
+        })
+      } catch (err) {
+        console.error('Failed to send message via Mega Proxy:', err)
+        // Fallback to local simulation for UI continuity
+      }
+    }
 
     // Find conversation details for logging
     const conv = this.conversations.find((c) => c.id === conversationId)
@@ -379,6 +363,7 @@ class MegaApiService {
         .catch(console.error)
     }
 
+    // Optimistic UI Update
     return new Promise((resolve) => {
       setTimeout(() => {
         const newMessage: WhatsappMessage = {
@@ -407,7 +392,7 @@ class MegaApiService {
         if (sender === 'USUARIO') {
           this.triggerBotResponse(conversationId, content)
         }
-      }, 500)
+      }, 100)
     })
   }
 
@@ -497,19 +482,8 @@ class MegaApiService {
       this.messages[conversationId].push(botMessage)
       this.updateConversationPreview(conversationId, botMessage)
 
-      // Log bot response
-      const conv = this.conversations.find((c) => c.id === conversationId)
-      if (conv) {
-        notificationService
-          .logNotification({
-            recipientName: conv.profissionalNome || 'Desconhecido',
-            recipientContact: conv.telefone,
-            channel: 'whatsapp',
-            content: finalBotText,
-            status: 'sent',
-          })
-          .catch(console.error)
-      }
+      // Send via Proxy (Best Effort)
+      this.sendMessage(conversationId, finalBotText, 'BOT').catch(console.error)
 
       this.notifyListeners()
     } catch (error) {
@@ -552,6 +526,7 @@ class MegaApiService {
     if (this.pollingInterval) clearInterval(this.pollingInterval)
 
     this.pollingInterval = setInterval(() => {
+      // Only simulate if we think we are connected
       if (this.isConnected && Math.random() > 0.85) {
         this.simulateIncomingWebhook()
       }
