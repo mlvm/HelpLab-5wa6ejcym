@@ -2,16 +2,12 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-const MEGA_API_DEFAULT_URL = 'https://api.mega-whatsapp-provider.com'
-
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 1. Authenticate User
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       throw new Error('Missing Authorization header')
@@ -35,15 +31,20 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // 2. Retrieve Secrets
     const apiKey = Deno.env.get('MEGA_API_KEY')
     const webhookUrl = Deno.env.get('MEGA_WEBHOOK_URL')
 
-    if (!apiKey) {
+    if (!apiKey || !webhookUrl) {
       return new Response(
         JSON.stringify({
-          error: 'MEGA_API_KEY not configured in Supabase Secrets',
+          error: 'Missing configuration',
+          message:
+            'MEGA_API_KEY and MEGA_WEBHOOK_URL are required in Supabase Secrets.',
           configured: false,
+          missing: [
+            !apiKey && 'MEGA_API_KEY',
+            !webhookUrl && 'MEGA_WEBHOOK_URL',
+          ].filter(Boolean),
         }),
         {
           status: 400,
@@ -52,15 +53,10 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // 3. Process Actions
     const { action, payload } = await req.json()
 
     if (action === 'test') {
-      // Real connection test to Mega API
-      // Using a specialized endpoint or a generic one like /status or /me
-      const targetUrl = `${
-        webhookUrl || MEGA_API_DEFAULT_URL
-      }/v1/status?key=${apiKey}` // Simplified auth for demo
+      const targetUrl = `${webhookUrl}/v1/status?key=${apiKey}`
 
       try {
         const response = await fetch(targetUrl, {
@@ -71,13 +67,7 @@ Deno.serve(async (req: Request) => {
           },
         })
 
-        // We assume 200 OK means credentials are valid
-        // For the purpose of this user story, if the request is sent, it counts as a real test.
-        // If the URL is fake (mocked for dev), it will fail, which is correct behavior until properly configured.
-
-        const data = await response
-          .json()
-          .catch(() => ({ status: response.statusText }))
+        const data = await response.json().catch(() => ({}))
 
         return new Response(
           JSON.stringify({
@@ -85,19 +75,19 @@ Deno.serve(async (req: Request) => {
             status: response.status,
             data,
             message: response.ok
-              ? 'Connection successful'
-              : 'Connection failed',
+              ? 'Conexão estabelecida com sucesso'
+              : 'Falha na conexão com API Mega',
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           },
         )
-      } catch (fetchError: any) {
+      } catch (e: any) {
         return new Response(
           JSON.stringify({
             success: false,
-            error: fetchError.message,
-            message: 'Network error connecting to Mega API',
+            error: e.message,
+            message: 'Erro de rede ao conectar com API Mega',
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -108,7 +98,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'send') {
       const { conversationId, content } = payload
-      const targetUrl = `${webhookUrl || MEGA_API_DEFAULT_URL}/v1/messages`
+      const targetUrl = `${webhookUrl}/v1/messages`
 
       try {
         const response = await fetch(targetUrl, {
@@ -123,9 +113,7 @@ Deno.serve(async (req: Request) => {
           }),
         })
 
-        const data = await response
-          .json()
-          .catch(() => ({ status: response.statusText }))
+        const data = await response.json().catch(() => ({}))
 
         return new Response(
           JSON.stringify({

@@ -10,6 +10,16 @@ export interface NotificationTemplate {
   content: string
 }
 
+export interface EmailConfig {
+  host: string
+  port: string
+  username: string
+  password: string
+  fromEmail: string
+  encryption: 'none' | 'ssl' | 'tls'
+  enabled: boolean
+}
+
 const DEFAULT_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tpl_conf',
@@ -29,8 +39,71 @@ const DEFAULT_TEMPLATES: NotificationTemplate[] = [
   },
 ]
 
+const DEFAULT_EMAIL_CONFIG: EmailConfig = {
+  host: '',
+  port: '',
+  username: '',
+  password: '',
+  fromEmail: '',
+  encryption: 'tls',
+  enabled: false,
+}
+
 class NotificationService {
   private templates: NotificationTemplate[] = DEFAULT_TEMPLATES
+  private emailConfig: EmailConfig = DEFAULT_EMAIL_CONFIG
+
+  constructor() {
+    this.loadSettings()
+  }
+
+  private loadSettings() {
+    const savedTemplates = localStorage.getItem('notification_templates')
+    if (savedTemplates) {
+      try {
+        this.templates = JSON.parse(savedTemplates)
+      } catch (e) {
+        console.error('Failed to parse templates', e)
+      }
+    }
+
+    const savedEmail = localStorage.getItem('email_config')
+    if (savedEmail) {
+      try {
+        this.emailConfig = JSON.parse(savedEmail)
+      } catch (e) {
+        console.error('Failed to parse email config', e)
+      }
+    }
+  }
+
+  // --- Configuration Methods ---
+
+  getTemplates() {
+    return this.templates
+  }
+
+  saveTemplate(template: NotificationTemplate) {
+    const index = this.templates.findIndex((t) => t.id === template.id)
+    if (index >= 0) {
+      this.templates[index] = template
+    } else {
+      this.templates.push(template)
+    }
+    localStorage.setItem(
+      'notification_templates',
+      JSON.stringify(this.templates),
+    )
+  }
+
+  getEmailConfig() {
+    return this.emailConfig
+  }
+
+  saveEmailConfig(config: EmailConfig) {
+    this.emailConfig = config
+    localStorage.setItem('email_config', JSON.stringify(config))
+  }
 
   // --- History (Now Communications) ---
 
@@ -109,6 +182,10 @@ class NotificationService {
         )
         await megaApi.sendMessage(convId, renderedContent, 'BOT')
 
+        // Logging is done inside sendMessage for BOT, but we double check here if needed.
+        // Actually sendMessage logs it, so we might skip duplicate log or rely on it.
+        // For safety/consistency with existing code:
+        /* 
         await this.logNotification({
           recipientName: data.professionalName,
           recipientContact: data.professionalPhone,
@@ -116,6 +193,7 @@ class NotificationService {
           content: renderedContent,
           status: 'sent',
         })
+        */
       } catch (error) {
         await this.logNotification({
           recipientName: data.professionalName,

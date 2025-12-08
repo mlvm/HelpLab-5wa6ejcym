@@ -359,11 +359,14 @@ export default function Settings() {
                       {megaMessage || 'Verificando status...'}
                     </p>
                     {megaStatus === 'error' && (
-                      <p className="text-xs text-red-500 mt-2">
-                        Certifique-se de adicionar <code>MEGA_API_KEY</code> e{' '}
-                        <code>MEGA_WEBHOOK_URL</code> nos segredos do projeto no
-                        Supabase.
-                      </p>
+                      <div className="text-xs text-red-500 mt-2 p-2 bg-red-50 border border-red-100 rounded">
+                        <p className="font-medium mb-1">Ação Necessária:</p>
+                        <p>
+                          Verifique se as chaves <code>MEGA_API_KEY</code> e{' '}
+                          <code>MEGA_WEBHOOK_URL</code> estão configuradas
+                          corretamente no painel de Segredos do Supabase.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>

@@ -148,14 +148,18 @@ class MegaApiService {
 
       if (error) {
         console.error('Edge Function Error:', error)
-        return { success: false, message: 'Falha ao contatar servidor proxy' }
-      }
-
-      if (data?.error && data?.configured === false) {
         return {
           success: false,
-          message:
-            'Credenciais não configuradas no Supabase Secrets (MEGA_API_KEY)',
+          message: 'Falha ao contatar servidor proxy (Edge Function)',
+        }
+      }
+
+      if (data?.configured === false) {
+        const missing =
+          data.missing?.join(', ') || 'MEGA_API_KEY ou MEGA_WEBHOOK_URL'
+        return {
+          success: false,
+          message: `Credenciais ausentes no Supabase Secrets: ${missing}`,
         }
       }
 
@@ -163,7 +167,10 @@ class MegaApiService {
         this.isConnected = true
         this.startWebhookSimulation()
         this.notifyListeners()
-        return { success: true, message: 'Conexão estabelecida com sucesso!' }
+        return {
+          success: true,
+          message: data.message || 'Conexão estabelecida com sucesso!',
+        }
       } else {
         return {
           success: false,
