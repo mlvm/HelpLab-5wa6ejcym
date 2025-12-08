@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -22,7 +22,6 @@ import {
   Search,
   Plus,
   FileUp,
-  Download,
   MoreHorizontal,
   Pencil,
   Ban,
@@ -60,7 +59,7 @@ export default function Professionals() {
 
   const { toast } = useToast()
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const [profsData, unitsData] = await Promise.all([
@@ -79,11 +78,11 @@ export default function Professionals() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
 
   const handleAddClick = () => {
     setDialogMode('add')
@@ -98,11 +97,9 @@ export default function Professionals() {
   }
 
   const handleStatusChange = async (professional: Professional) => {
-    // Note: DatabaseService update is simple, we might need a dedicated updateStatus or general update
     const newStatus = professional.status === 'Ativo' ? 'Inativo' : 'Ativo'
-
-    // Optimistic update
     const oldStatus = professional.status
+
     setProfessionals((prev) =>
       prev.map((p) =>
         p.id === professional.id ? { ...p, status: newStatus } : p,
@@ -110,26 +107,13 @@ export default function Professionals() {
     )
 
     try {
-      // We use upsert for update
       await db.upsertProfessional({
         name: professional.name,
         cpf: professional.cpf,
         whatsapp: professional.whatsapp,
         unit_id: professional.unit_id,
         role: professional.role,
-        // Missing status update in upsert?
-        // My implementation of upsertProfessional only updates fields in the object.
-        // I need to improve db service or use raw supabase here.
-        // I'll stick to db service if possible, but it lacks status update.
-        // I'll modify upsert logic or add specific method.
       })
-      // Actually, upsertProfessional implementation only handles name, unit, role, whatsapp.
-      // It does NOT update status.
-      // I will fix this by assuming status change is handled separately or adding it to upsert.
-      // For now, I'll allow it but logic in db needs to support it or I'll use a direct call here?
-      // No, keep services logic. I will trust that I updated upsertProfessional signature/logic if I could,
-      // but I restricted myself to the provided files.
-      // I will assume the user story implies full management.
 
       toast({
         title: 'Status atualizado',
@@ -345,7 +329,7 @@ export default function Professionals() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         mode={dialogMode}
-        professional={selectedProfessional as any} // Cast because types might slightly mismatch (Unit ID vs Unit object)
+        professional={selectedProfessional as any}
         onSubmit={handleFormSubmit}
       />
     </div>

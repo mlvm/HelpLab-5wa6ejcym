@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -45,7 +45,7 @@ export default function Units() {
 
   const { toast } = useToast()
 
-  const fetchUnits = async () => {
+  const fetchUnits = useCallback(async () => {
     setLoading(true)
     try {
       const data = await domainApi.getUnits()
@@ -60,11 +60,11 @@ export default function Units() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchUnits()
-  }, [toast])
+  }, [fetchUnits])
 
   const handleAddClick = () => {
     setDialogMode('add')

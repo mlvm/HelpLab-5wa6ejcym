@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -48,7 +48,7 @@ export default function Trainings() {
 
   const { toast } = useToast()
 
-  const fetchTrainings = async () => {
+  const fetchTrainings = useCallback(async () => {
     setLoading(true)
     try {
       const data = await trainingService.getTrainings()
@@ -62,11 +62,11 @@ export default function Trainings() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchTrainings()
-  }, [])
+  }, [fetchTrainings])
 
   const handleAddClick = () => {
     setDialogMode('add')

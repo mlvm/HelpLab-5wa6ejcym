@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -46,7 +46,7 @@ export default function Instructors() {
 
   const { toast } = useToast()
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const [instructorsData, unitsData] = await Promise.all([
@@ -65,11 +65,11 @@ export default function Instructors() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchData()
-  }, [toast])
+  }, [fetchData])
 
   const handleAddClick = () => {
     setDialogMode('add')
