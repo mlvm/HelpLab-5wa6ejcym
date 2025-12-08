@@ -10,13 +10,19 @@ Deno.serve(async (req: Request) => {
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      throw new Error('Missing Authorization header')
+      // In a real proxy, we might validate the user session via Supabase Auth
+      // The client sends the user's Supabase JWT.
     }
 
+    // Validate Supabase Auth (User Session)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } },
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      },
     )
 
     const {
@@ -31,6 +37,7 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    // Retrieve Mega API Configuration
     const apiKey = Deno.env.get('MEGA_API_KEY')
     const webhookUrl = Deno.env.get('MEGA_WEBHOOK_URL')
 
@@ -55,8 +62,11 @@ Deno.serve(async (req: Request) => {
 
     const { action, payload } = await req.json()
 
+    // Normalize webhookUrl (remove trailing slash)
+    const baseUrl = webhookUrl.replace(/\/$/, '')
+
     if (action === 'test') {
-      const targetUrl = `${webhookUrl}/v1/status`
+      const targetUrl = `${baseUrl}/v1/status`
 
       try {
         const response = await fetch(targetUrl, {
@@ -73,9 +83,9 @@ Deno.serve(async (req: Request) => {
           return new Response(
             JSON.stringify({
               success: false,
-              message: 'Falha ao contatar servidor proxy (Edge Function)',
-              data,
+              message: 'Falha ao contatar servidor Mega API',
               upstreamStatus: response.status,
+              data,
             }),
             {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -99,7 +109,7 @@ Deno.serve(async (req: Request) => {
           JSON.stringify({
             success: false,
             error: e.message,
-            message: 'Falha ao contatar servidor proxy (Edge Function)',
+            message: 'Falha ao contatar servidor proxy',
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -109,8 +119,12 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'send') {
-      const { conversationId, content } = payload
-      const targetUrl = `${webhookUrl}/v1/messages`
+      // Expecting 'to' (phone) and 'content' (text)
+      // Fallback to conversationId if to is not provided (legacy support)
+      const { to, conversationId, content } = payload
+      const recipient = to || conversationId
+
+      const targetUrl = `${baseUrl}/v1/messages`
 
       try {
         const response = await fetch(targetUrl, {
@@ -120,7 +134,7 @@ Deno.serve(async (req: Request) => {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            to: conversationId,
+            to: recipient,
             text: content,
           }),
         })

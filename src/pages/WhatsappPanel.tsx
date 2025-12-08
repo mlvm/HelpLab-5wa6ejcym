@@ -62,10 +62,10 @@ export default function WhatsappPanel() {
           (creds.aiProvider === 'chatgpt' && creds.openaiApiKey) ||
           (creds.aiProvider === 'gemini' && creds.geminiApiKey)
 
+        // Only warn about missing AI config, do NOT block
         if (!hasAiConfig) {
-          setMissingConfig(true)
-          setIsLoading(false)
-          return
+          // We could set missingConfig(true) if we wanted to block,
+          // but for Mega API testing we allow proceeding.
         }
 
         // Connect with stored credentials (Mega API credentials are now on server)

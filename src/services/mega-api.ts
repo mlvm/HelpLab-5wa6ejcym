@@ -343,18 +343,32 @@ class MegaApiService {
     await this.sendMessage(conversationId, message, 'BOT')
   }
 
+  private sanitizePhone(phone: string): string {
+    return phone.replace(/\D/g, '')
+  }
+
   async sendMessage(
     conversationId: string,
     content: string,
     sender: ChatSender = 'USUARIO',
   ): Promise<WhatsappMessage> {
+    // Find conversation details for logging and sending
+    const conv = this.conversations.find((c) => c.id === conversationId)
+
     // Attempt real send via proxy if it is a BOT message or if we are connected
     if (this.isConnected && sender === 'BOT') {
       try {
+        const recipient = conv
+          ? this.sanitizePhone(conv.telefone)
+          : conversationId
+
         await supabase.functions.invoke('mega-api-proxy', {
           body: {
             action: 'send',
-            payload: { conversationId, content },
+            payload: {
+              to: recipient,
+              content,
+            },
           },
         })
       } catch (err) {
@@ -362,9 +376,6 @@ class MegaApiService {
         // Fallback to local simulation for UI continuity
       }
     }
-
-    // Find conversation details for logging
-    const conv = this.conversations.find((c) => c.id === conversationId)
 
     // Log to Supabase Communications table (Async, don't block UI)
     if (sender === 'BOT' && conv) {
