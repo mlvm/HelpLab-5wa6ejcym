@@ -14,6 +14,7 @@ import {
   Building2,
   GraduationCap,
   ChevronDown,
+  Shield,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -75,6 +76,7 @@ export function Sidebar({
         { label: 'Auditoria', href: '/settings/audit' },
       ],
     },
+    { icon: Shield, label: 'Administração', href: '/admin/usuarios' },
   ]
 
   const toggleSubmenu = (label: string) => {

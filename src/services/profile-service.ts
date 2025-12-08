@@ -8,6 +8,7 @@ export interface Profile {
   unit: string | null
   avatar_url: string | null
   status: 'active' | 'inactive'
+  role: 'admin' | 'user'
   email?: string
 }
 
@@ -30,7 +31,7 @@ export const profileService = {
     }
 
     if (data) {
-      return { ...data, email: user.email }
+      return { ...data, email: user.email } as Profile
     }
 
     // Return basic info from auth to pre-fill if no profile exists
@@ -42,6 +43,7 @@ export const profileService = {
       unit: '',
       avatar_url: null,
       status: 'active',
+      role: 'user',
       email: user.email,
     }
   },
