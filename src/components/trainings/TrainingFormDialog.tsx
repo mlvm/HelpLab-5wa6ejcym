@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -20,7 +20,8 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Training } from '@/types/training'
+import { Training } from '@/types/db-types'
+import { Loader2, Upload } from 'lucide-react'
 
 const formSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -37,7 +38,24 @@ interface TrainingFormDialogProps {
   onOpenChange: (open: boolean) => void
   mode: 'add' | 'edit'
   training?: Training | null
-  onSubmit: (data: TrainingFormValues) => void
+  onSubmit: (data: TrainingFormValues) => void // Note: This prop doesn't handle file, we handle it internally or change signature?
+  // The parent handles submission. I need to pass the file up or handle it here.
+  // I'll update signature to allow file passing or rely on parent using a different prop,
+  // but to keep it simple I will rely on the parent (Trainings.tsx) to adapt,
+  // but wait, I can't change Trainings.tsx in this file.
+  // I updated Trainings.tsx earlier to use trainingService.
+  // But Trainings.tsx calls onSubmit with just 'data'.
+  // I need to change how data is passed back.
+  // I will add an optional file argument to onSubmit in this component, and update Trainings.tsx later?
+  // No, I can't update Trainings.tsx AGAIN if I already finalized it in previous turn.
+  // Wait, I updated Trainings.tsx in THIS turn (Turn 2).
+  // I did NOT update it to handle file upload in Turn 2. I only updated it to use trainingService.
+  // I need to update Trainings.tsx to accept file.
+}
+
+// I will overload the onSubmit type to include file
+interface ExtendedProps extends Omit<TrainingFormDialogProps, 'onSubmit'> {
+  onSubmit: (data: TrainingFormValues, file?: File) => void
 }
 
 export function TrainingFormDialog({
@@ -46,7 +64,9 @@ export function TrainingFormDialog({
   mode,
   training,
   onSubmit,
-}: TrainingFormDialogProps) {
+}: ExtendedProps) {
+  const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined)
+
   const form = useForm<TrainingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -60,6 +80,7 @@ export function TrainingFormDialog({
 
   useEffect(() => {
     if (open) {
+      setSelectedFile(undefined)
       if (mode === 'add') {
         form.reset({
           name: '',
@@ -74,14 +95,14 @@ export function TrainingFormDialog({
           hours: training.hours,
           capacity: training.capacity,
           description: training.description || '',
-          instructor: training.instructor || '',
+          instructor: (training.instructor as any) || '', // simplistic handling of instructor name/id
         })
       }
     }
   }, [open, mode, training, form])
 
   const handleSubmit = (data: TrainingFormValues) => {
-    onSubmit(data)
+    onSubmit(data, selectedFile)
     onOpenChange(false)
   }
 
@@ -179,6 +200,32 @@ export function TrainingFormDialog({
                 </FormItem>
               )}
             />
+
+            <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+              <FormLabel className="text-right">Material</FormLabel>
+              <div className="col-span-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    className="cursor-pointer"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0])}
+                  />
+                </div>
+                {training?.material_url && !selectedFile && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Arquivo atual:{' '}
+                    <a
+                      href={training.material_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      Download
+                    </a>
+                  </p>
+                )}
+              </div>
+            </FormItem>
 
             <DialogFooter>
               <Button type="submit">Salvar</Button>

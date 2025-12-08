@@ -26,16 +26,22 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Send, History, Mail, MessageCircle, Search } from 'lucide-react'
 import {
-  notificationService,
-  NotificationLog,
-} from '@/services/notification-service'
+  Send,
+  History,
+  Mail,
+  MessageCircle,
+  Search,
+  Loader2,
+} from 'lucide-react'
+import { notificationService } from '@/services/notification-service'
+import { Communication } from '@/types/db-types'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
 export default function Communications() {
-  const [logs, setLogs] = useState<NotificationLog[]>([])
+  const [logs, setLogs] = useState<Communication[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [channelFilter, setChannelFilter] = useState('all')
 
@@ -47,8 +53,16 @@ export default function Communications() {
     'whatsapp',
   )
 
-  const refreshLogs = () => {
-    setLogs(notificationService.getLogs())
+  const refreshLogs = async () => {
+    setLoading(true)
+    try {
+      const data = await notificationService.getLogs()
+      setLogs(data)
+    } catch (e) {
+      console.error('Failed to fetch logs', e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -80,8 +94,8 @@ export default function Communications() {
 
   const filteredLogs = logs.filter((log) => {
     const matchesSearch =
-      log.recipientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.recipientContact.includes(searchQuery) ||
+      log.recipient_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      log.recipient_contact.includes(searchQuery) ||
       log.content.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesChannel =
@@ -205,19 +219,25 @@ export default function Communications() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLogs.length > 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredLogs.length > 0 ? (
                   filteredLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
-                        {format(new Date(log.sentAt), 'dd/MM/yy HH:mm')}
+                        {format(new Date(log.sent_at), 'dd/MM/yy HH:mm')}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium text-sm">
-                            {log.recipientName}
+                            {log.recipient_name}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {log.recipientContact}
+                            {log.recipient_contact}
                           </span>
                         </div>
                       </TableCell>

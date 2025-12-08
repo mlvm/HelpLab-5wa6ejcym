@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { profileService, Profile } from '@/services/profile-service'
+import { storageService } from '@/services/storage-service'
 import {
   Form,
   FormControl,
@@ -68,6 +69,7 @@ export default function Account() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const { toast } = useToast()
 
@@ -160,6 +162,32 @@ export default function Account() {
     }
   }
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !profile) return
+
+    setIsUploading(true)
+    try {
+      const file = e.target.files[0]
+      const url = await storageService.uploadAvatar(profile.id, file)
+
+      await profileService.updateProfile({ ...profile, avatar_url: url })
+      setProfile((prev) => (prev ? { ...prev, avatar_url: url } : null))
+
+      toast({
+        title: 'Avatar atualizado',
+        description: 'Sua foto de perfil foi atualizada.',
+      })
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro no upload',
+        description: 'Não foi possível enviar a imagem.',
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const handleInactivate = async () => {
     try {
       await profileService.inactivateAccount()
@@ -216,20 +244,34 @@ export default function Account() {
             <CardContent>
               <div className="flex flex-col items-center mb-6">
                 <div className="relative group cursor-pointer">
-                  <Avatar className="h-24 w-24 border-2 border-border">
-                    <AvatarImage
-                      src={
-                        profile?.avatar_url ||
-                        'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1'
-                      }
-                    />
-                    <AvatarFallback className="text-2xl">
-                      {profile?.name?.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                    <Camera className="h-6 w-6" />
-                  </div>
+                  <label htmlFor="avatar-upload" className="cursor-pointer">
+                    <Avatar className="h-24 w-24 border-2 border-border">
+                      <AvatarImage
+                        src={
+                          profile?.avatar_url ||
+                          'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1'
+                        }
+                      />
+                      <AvatarFallback className="text-2xl">
+                        {profile?.name?.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                      {isUploading ? (
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      ) : (
+                        <Camera className="h-6 w-6" />
+                      )}
+                    </div>
+                  </label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                    disabled={isUploading}
+                  />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   Clique para alterar a foto

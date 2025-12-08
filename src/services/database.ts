@@ -1,266 +1,174 @@
+import { supabase } from '@/lib/supabase/client'
+import { Professional, Appointment } from '@/types/db-types'
 import { format } from 'date-fns'
 
-export interface Professional {
-  id: string
-  name: string
-  cpf: string
-  whatsapp?: string
-  unit: string
-  role: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface AppointmentHistory {
-  status: string
-  timestamp: string
-  updatedBy: string
-}
-
-export interface Appointment {
-  id: number
-  professionalId: string
-  prof: string // Denormalized name
-  training: string
-  date: string
-  channel: string
-  status: string
-  createdAt: string
-  history: AppointmentHistory[]
-}
+// DatabaseService - Refactored for Supabase
+// Maintaining backward compatibility where possible but making methods async
 
 class DatabaseService {
-  private professionals: Professional[] = []
-  private appointments: Appointment[] = []
+  // Professionals
+  async getProfessionals(): Promise<Professional[]> {
+    const { data, error } = await supabase
+      .from('professionals')
+      .select('*, unit:units(*)')
+      .order('name')
 
-  constructor() {
-    this.load()
-    if (this.appointments.length === 0) {
-      this.seed()
+    if (error) {
+      console.error('Error fetching professionals:', error)
+      return []
     }
+    return data as Professional[]
   }
 
-  private load() {
-    try {
-      const storedProfs = localStorage.getItem('helplab_professionals')
-      const storedAppts = localStorage.getItem('helplab_appointments')
-      if (storedProfs) this.professionals = JSON.parse(storedProfs)
-      if (storedAppts) this.appointments = JSON.parse(storedAppts)
-    } catch (e) {
-      console.error('Failed to load database', e)
-    }
+  async getProfessionalByCpf(cpf: string): Promise<Professional | null> {
+    const { data, error } = await supabase
+      .from('professionals')
+      .select('*')
+      .eq('cpf', cpf)
+      .single()
+
+    if (error) return null
+    return data as Professional
   }
 
-  private save() {
-    try {
-      localStorage.setItem(
-        'helplab_professionals',
-        JSON.stringify(this.professionals),
-      )
-      localStorage.setItem(
-        'helplab_appointments',
-        JSON.stringify(this.appointments),
-      )
-    } catch (e) {
-      console.error('Failed to save database', e)
-    }
-  }
-
-  private seed() {
-    // Initial Seed Data
-    const profs: Professional[] = [
-      {
-        id: 'p1',
-        name: 'Ana Clara',
-        cpf: '123.456.789-00',
-        whatsapp: '+55 11 99999-0001',
-        unit: 'Hospital Central',
-        role: 'Enfermeira',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 'p2',
-        name: 'Carlos Eduardo',
-        cpf: '987.654.321-11',
-        whatsapp: '+55 11 98888-0002',
-        unit: 'UBS Centro',
-        role: 'Técnico',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ]
-
-    const appts: Appointment[] = [
-      {
-        id: 1,
-        professionalId: 'p1',
-        prof: 'Ana Clara',
-        training: 'Biossegurança',
-        date: '15/10/2024',
-        channel: 'WhatsApp',
-        status: 'Confirmado',
-        createdAt: new Date().toISOString(),
-        history: [
-          {
-            status: 'Agendado',
-            timestamp: new Date(Date.now() - 86400000).toISOString(),
-            updatedBy: 'Sistema',
-          },
-          {
-            status: 'Confirmado',
-            timestamp: new Date().toISOString(),
-            updatedBy: 'Admin',
-          },
-        ],
-      },
-      {
-        id: 2,
-        professionalId: 'p2',
-        prof: 'Carlos Eduardo',
-        training: 'Biossegurança',
-        date: '15/10/2024',
-        channel: 'WhatsApp',
-        status: 'Confirmado',
-        createdAt: new Date().toISOString(),
-        history: [
-          {
-            status: 'Confirmado',
-            timestamp: new Date().toISOString(),
-            updatedBy: 'Sistema',
-          },
-        ],
-      },
-    ]
-
-    this.professionals = profs
-    this.appointments = appts
-    this.save()
-  }
-
-  // --- Public API ---
-
-  getProfessionals() {
-    return [...this.professionals]
-  }
-
-  getAppointments() {
-    return [...this.appointments]
-  }
-
-  getProfessionalByCpf(cpf: string) {
-    return this.professionals.find((p) => p.cpf === cpf)
-  }
-
-  upsertProfessional(data: {
+  async upsertProfessional(data: {
     name: string
     cpf: string
     whatsapp?: string
-    unit: string
+    unit_id?: string
     role: string
-  }): Professional {
-    const existing = this.getProfessionalByCpf(data.cpf)
-    const now = new Date().toISOString()
+  }): Promise<Professional | null> {
+    const existing = await this.getProfessionalByCpf(data.cpf)
 
     if (existing) {
-      // Update
-      const updated = {
-        ...existing,
-        name: data.name,
-        unit: data.unit,
-        role: data.role,
-        whatsapp: data.whatsapp || existing.whatsapp,
-        updatedAt: now,
-      }
-      this.professionals = this.professionals.map((p) =>
-        p.id === existing.id ? updated : p,
-      )
-      this.save()
+      const { data: updated, error } = await supabase
+        .from('professionals')
+        .update({
+          name: data.name,
+          whatsapp: data.whatsapp,
+          unit_id: data.unit_id,
+          role: data.role,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+        .select()
+        .single()
+
+      if (error) throw error
       return updated
     } else {
-      // Create
-      const newItem: Professional = {
-        id: `prof_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        name: data.name,
-        cpf: data.cpf,
-        whatsapp: data.whatsapp,
-        unit: data.unit,
-        role: data.role,
-        createdAt: now,
-        updatedAt: now,
-      }
-      this.professionals = [...this.professionals, newItem]
-      this.save()
-      return newItem
+      const { data: newProf, error } = await supabase
+        .from('professionals')
+        .insert({
+          name: data.name,
+          cpf: data.cpf,
+          whatsapp: data.whatsapp,
+          unit_id: data.unit_id,
+          role: data.role,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return newProf
     }
   }
 
-  createAppointment(data: {
+  // Appointments
+  async getAppointments(): Promise<Appointment[]> {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select(
+        `
+        *,
+        professional:professionals(id, name, cpf, whatsapp, unit_id, role, status),
+        training:trainings(id, name),
+        history:appointment_history(*)
+      `,
+      )
+      .order('date', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching appointments:', error)
+      return []
+    }
+
+    // Map to ensure flat structure where needed or enrich
+    return data.map((apt: any) => ({
+      ...apt,
+      prof: apt.professional?.name || 'Unknown', // Helper for UI
+      training: apt.training?.name || apt.training_name, // Helper for UI
+    })) as Appointment[]
+  }
+
+  async createAppointment(data: {
     professionalId: string
-    profName: string
-    training: string
+    training_id?: string
+    training_name: string
     date: Date | string
     channel: string
     status: string
-  }): Appointment {
+  }): Promise<Appointment | null> {
     let formattedDate = ''
     if (data.date instanceof Date) {
-      formattedDate = format(data.date, 'dd/MM/yyyy')
+      formattedDate = format(data.date, 'yyyy-MM-dd')
     } else {
-      formattedDate = data.date
+      formattedDate = data.date // Assuming YYYY-MM-DD or fix format
     }
 
-    const now = new Date().toISOString()
-    const newId = Math.max(0, ...this.appointments.map((a) => a.id)) + 1
-    const newAppt: Appointment = {
-      id: newId,
-      professionalId: data.professionalId,
-      prof: data.profName,
-      training: data.training,
-      date: formattedDate,
-      channel: data.channel,
+    // Insert Appointment
+    const { data: appt, error } = await supabase
+      .from('appointments')
+      .insert({
+        professional_id: data.professionalId,
+        training_id: data.training_id,
+        training_name: data.training_name,
+        date: formattedDate,
+        channel: data.channel,
+        status: data.status,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Insert History
+    await supabase.from('appointment_history').insert({
+      appointment_id: appt.id,
       status: data.status,
-      createdAt: now,
-      history: [
-        {
-          status: data.status,
-          timestamp: now,
-          updatedBy: 'Sistema',
-        },
-      ],
-    }
+      updated_by: 'Sistema',
+    })
 
-    this.appointments = [newAppt, ...this.appointments]
-    this.save()
-    return newAppt
+    return appt
   }
 
-  updateAppointment(id: number, updates: Partial<Appointment>) {
-    const appointment = this.appointments.find((a) => a.id === id)
-    if (!appointment) return
+  async updateAppointment(id: string, updates: Partial<Appointment>) {
+    const { error } = await supabase
+      .from('appointments')
+      .update({
+        status: updates.status,
+        date: updates.date,
+        channel: updates.channel,
+        training_id: updates.training_id,
+        training_name: updates.training_name,
+      })
+      .eq('id', id)
 
-    // If status changed, add to history
-    let newHistory = appointment.history || []
-    if (updates.status && updates.status !== appointment.status) {
-      newHistory = [
-        ...newHistory,
-        {
-          status: updates.status,
-          timestamp: new Date().toISOString(),
-          updatedBy: 'Admin',
-        },
-      ]
+    if (error) throw error
+
+    if (updates.status) {
+      await supabase.from('appointment_history').insert({
+        appointment_id: id,
+        status: updates.status,
+        updated_by: 'Admin', // Or get user context
+      })
     }
-
-    this.appointments = this.appointments.map((a) =>
-      a.id === id ? { ...a, ...updates, history: newHistory } : a,
-    )
-    this.save()
   }
 
-  deleteAppointment(id: number) {
-    this.appointments = this.appointments.filter((a) => a.id !== id)
-    this.save()
+  async deleteAppointment(id: string) {
+    const { error } = await supabase.from('appointments').delete().eq('id', id)
+
+    if (error) throw error
   }
 }
 

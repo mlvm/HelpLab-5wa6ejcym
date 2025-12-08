@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import {
   Table,
   TableBody,
@@ -8,35 +9,27 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-
-const logs = [
-  {
-    id: 1,
-    date: '15/10/2024 10:30',
-    user: 'Admin',
-    action: 'UPDATE',
-    entity: 'Profissional',
-    details: 'Alterou status de Carlos para Inativo',
-  },
-  {
-    id: 2,
-    date: '15/10/2024 10:25',
-    user: 'Sistema',
-    action: 'CREATE',
-    entity: 'Agendamento',
-    details: 'Novo agendamento via WhatsApp (ID: 554)',
-  },
-  {
-    id: 3,
-    date: '15/10/2024 09:15',
-    user: 'Admin',
-    action: 'DELETE',
-    entity: 'Turma',
-    details: 'Removeu Turma Cancelada #99',
-  },
-]
+import { auditService } from '@/services/audit-service'
+import { AuditLog } from '@/types/db-types'
+import { Loader2 } from 'lucide-react'
+import { format } from 'date-fns'
 
 export default function Audit() {
+  const [logs, setLogs] = useState<AuditLog[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const data = await auditService.getLogs()
+        setLogs(data)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
+  }, [])
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -62,21 +55,41 @@ export default function Audit() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {log.date}
-                  </TableCell>
-                  <TableCell className="font-medium">{log.user}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{log.action}</Badge>
-                  </TableCell>
-                  <TableCell>{log.entity}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {log.details}
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                logs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {log.user_id ? 'Auth User' : 'System'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{log.action}</Badge>
+                    </TableCell>
+                    <TableCell>{log.entity}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {log.details}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+              {!loading && logs.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground"
+                  >
+                    Nenhum registro encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

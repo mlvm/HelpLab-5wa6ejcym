@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -18,6 +18,8 @@ import {
   Pencil,
   Ban,
   CheckCircle,
+  Loader2,
+  FileText,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -25,55 +27,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Training, TrainingStatus } from '@/types/training'
+import { Training } from '@/types/db-types'
 import {
   TrainingFormDialog,
   TrainingFormValues,
 } from '@/components/trainings/TrainingFormDialog'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-
-export const INITIAL_TRAININGS: Training[] = [
-  {
-    id: 1,
-    name: 'Biossegurança Básica',
-    hours: '4h',
-    capacity: 30,
-    status: 'Ativo',
-    description: 'Curso introdutório sobre biossegurança.',
-    instructor: 'Dr. Silva',
-  },
-  {
-    id: 2,
-    name: 'Primeiros Socorros Avançados',
-    hours: '8h',
-    capacity: 20,
-    status: 'Ativo',
-    description: 'Técnicas avançadas de primeiros socorros.',
-    instructor: 'Enf. Maria',
-  },
-  {
-    id: 3,
-    name: 'Gestão de Resíduos Sólidos',
-    hours: '6h',
-    capacity: 25,
-    status: 'Inativo',
-    description: 'Gerenciamento adequado de resíduos de saúde.',
-    instructor: 'Eng. Roberto',
-  },
-  {
-    id: 4,
-    name: 'Coleta e Transporte de Amostras',
-    hours: '4h',
-    capacity: 30,
-    status: 'Ativo',
-    description: 'Procedimentos para coleta segura.',
-    instructor: 'Bio. Carla',
-  },
-]
+import { trainingService } from '@/services/training-service'
 
 export default function Trainings() {
-  const [trainings, setTrainings] = useState<Training[]>(INITIAL_TRAININGS)
+  const [trainings, setTrainings] = useState<Training[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add')
@@ -82,6 +47,26 @@ export default function Trainings() {
   )
 
   const { toast } = useToast()
+
+  const fetchTrainings = async () => {
+    setLoading(true)
+    try {
+      const data = await trainingService.getTrainings()
+      setTrainings(data)
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Erro ao buscar treinamentos.',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTrainings()
+  }, [])
 
   const handleAddClick = () => {
     setDialogMode('add')
@@ -95,40 +80,72 @@ export default function Trainings() {
     setDialogOpen(true)
   }
 
-  const handleStatusChange = (id: number, currentStatus: TrainingStatus) => {
-    const newStatus: TrainingStatus =
-      currentStatus === 'Ativo' ? 'Inativo' : 'Ativo'
+  const handleStatusChange = async (training: Training) => {
+    const newStatus = training.status === 'Ativo' ? 'Inativo' : 'Ativo'
+    const oldStatus = training.status
 
     setTrainings((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
+      prev.map((t) => (t.id === training.id ? { ...t, status: newStatus } : t)),
     )
 
-    toast({
-      title: 'Status atualizado',
-      description: `O treinamento foi ${newStatus === 'Ativo' ? 'ativado' : 'inativado'} com sucesso.`,
-    })
-  }
-
-  const handleFormSubmit = (data: TrainingFormValues) => {
-    if (dialogMode === 'add') {
-      const newId = Math.max(...trainings.map((t) => t.id), 0) + 1
-      const newTraining: Training = {
-        id: newId,
-        status: 'Ativo',
-        ...data,
-      }
-      setTrainings((prev) => [...prev, newTraining])
+    try {
+      await trainingService.updateTraining(training.id, { status: newStatus })
       toast({
-        title: 'Treinamento criado',
-        description: `${data.name} foi cadastrado com sucesso.`,
+        title: 'Status atualizado',
+        description: `Treinamento ${newStatus === 'Ativo' ? 'ativado' : 'inativado'}.`,
       })
-    } else if (dialogMode === 'edit' && selectedTraining) {
+    } catch (e) {
       setTrainings((prev) =>
-        prev.map((t) => (t.id === selectedTraining.id ? { ...t, ...data } : t)),
+        prev.map((t) =>
+          t.id === training.id ? { ...t, status: oldStatus } : t,
+        ),
       )
       toast({
-        title: 'Treinamento atualizado',
-        description: `Os dados de ${data.name} foram atualizados.`,
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Falha ao atualizar status.',
+      })
+    }
+  }
+
+  const handleFormSubmit = async (data: TrainingFormValues, file?: File) => {
+    try {
+      if (dialogMode === 'add') {
+        await trainingService.createTraining(
+          {
+            name: data.name,
+            hours: data.hours,
+            capacity: data.capacity,
+            description: data.description,
+          },
+          file,
+        )
+        toast({
+          title: 'Criado',
+          description: 'Treinamento criado com sucesso.',
+        })
+      } else if (dialogMode === 'edit' && selectedTraining) {
+        await trainingService.updateTraining(
+          selectedTraining.id,
+          {
+            name: data.name,
+            hours: data.hours,
+            capacity: data.capacity,
+            description: data.description,
+          },
+          file,
+        )
+        toast({
+          title: 'Atualizado',
+          description: 'Treinamento atualizado com sucesso.',
+        })
+      }
+      fetchTrainings()
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Erro ao salvar.',
       })
     }
   }
@@ -173,12 +190,19 @@ export default function Trainings() {
                 <TableHead>Instrutor</TableHead>
                 <TableHead>Carga Horária</TableHead>
                 <TableHead>Capacidade</TableHead>
+                <TableHead>Material</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTrainings.length > 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : filteredTrainings.length > 0 ? (
                 filteredTrainings.map((training) => (
                   <TableRow key={training.id}>
                     <TableCell className="font-medium">
@@ -189,9 +213,27 @@ export default function Trainings() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{training.instructor || '-'}</TableCell>
+                    <TableCell>{(training.instructor as any) || '-'}</TableCell>
                     <TableCell>{training.hours}</TableCell>
                     <TableCell>{training.capacity} alunos</TableCell>
+                    <TableCell>
+                      {training.material_url ? (
+                        <a
+                          href={training.material_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Badge
+                            variant="outline"
+                            className="cursor-pointer hover:bg-muted"
+                          >
+                            <FileText className="w-3 h-3 mr-1" /> Baixar
+                          </Badge>
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant="default"
@@ -224,9 +266,7 @@ export default function Trainings() {
                                 ? 'text-destructive'
                                 : 'text-primary'
                             }
-                            onClick={() =>
-                              handleStatusChange(training.id, training.status)
-                            }
+                            onClick={() => handleStatusChange(training)}
                           >
                             {training.status === 'Ativo' ? (
                               <>
@@ -246,7 +286,7 @@ export default function Trainings() {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
                     Nenhum treinamento encontrado.
@@ -262,7 +302,7 @@ export default function Trainings() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         mode={dialogMode}
-        training={selectedTraining}
+        training={selectedTraining as any}
         onSubmit={handleFormSubmit}
       />
     </div>

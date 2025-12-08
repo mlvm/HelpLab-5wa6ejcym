@@ -5,11 +5,13 @@ import {
   SEED_MESSAGES,
   ChatSender,
 } from '@/pages/WhatsappPanel.data'
-import { supabaseEdgeFunctions, AIResponse } from './supabase-edge-functions'
+import { supabaseEdgeFunctions } from './supabase-edge-functions'
 import { db } from './database'
+import { notificationService } from './notification-service' // Integration for logging
 
 export type AIProvider = 'chatgpt' | 'gemini'
 
+// ... (Existing types unchanged)
 export interface UsageLimits {
   monthlyInteractions: number
   tokensPerResponse: number
@@ -29,6 +31,7 @@ export interface TestResult {
 }
 
 class MegaApiService {
+  // ... (Existing properties unchanged)
   private apiKey: string | null = null
   private webhookUrl: string | null = null
   private openaiApiKey: string | null = null
@@ -62,7 +65,7 @@ class MegaApiService {
   private pollingInterval: NodeJS.Timeout | null = null
 
   constructor() {
-    // Load persisted config
+    // Load persisted config (unchanged)
     const storedKey = localStorage.getItem('mega_api_key')
     const storedUrl = localStorage.getItem('mega_webhook_url')
     const storedOpenAiKey = localStorage.getItem('openai_api_key')
@@ -99,8 +102,7 @@ class MegaApiService {
     }
   }
 
-  // --- Configuration ---
-
+  // ... (Configuration methods unchanged)
   async updateConfiguration(
     apiKey: string,
     webhookUrl: string,
@@ -149,8 +151,7 @@ class MegaApiService {
     }
   }
 
-  // --- Connection ---
-
+  // ... (Connection methods unchanged)
   async testConnection(key: string): Promise<boolean> {
     console.log('Testing connection with key:', key)
     return new Promise((resolve, reject) => {
@@ -259,8 +260,7 @@ class MegaApiService {
     return this.isConnected
   }
 
-  // --- Data Fetching ---
-
+  // ... (Data Fetching methods unchanged)
   async getConversations(): Promise<WhatsappConversation[]> {
     if (!this.isConnected) {
       return []
@@ -288,7 +288,7 @@ class MegaApiService {
     })
   }
 
-  // --- Messaging & AI ---
+  // ... (Messaging & AI methods updated for storage)
 
   async findOrCreateConversation(
     phoneNumber: string,
@@ -324,7 +324,6 @@ class MegaApiService {
 
     // Ensure connection is simulated if not explicit
     if (!this.isConnected) {
-      // Auto-connect for this action for demo purposes if not connected
       this.isConnected = true
     }
 
@@ -364,6 +363,22 @@ class MegaApiService {
   ): Promise<WhatsappMessage> {
     if (!this.isConnected) throw new Error('Not connected to Mega API')
 
+    // Find conversation details for logging
+    const conv = this.conversations.find((c) => c.id === conversationId)
+
+    // Log to Supabase Communications table (Async, don't block UI)
+    if (sender === 'BOT' && conv) {
+      notificationService
+        .logNotification({
+          recipientName: conv.profissionalNome || 'Desconhecido',
+          recipientContact: conv.telefone,
+          channel: 'whatsapp',
+          content: content,
+          status: 'sent',
+        })
+        .catch(console.error)
+    }
+
     return new Promise((resolve) => {
       setTimeout(() => {
         const newMessage: WhatsappMessage = {
@@ -400,6 +415,7 @@ class MegaApiService {
     conversationId: string,
     userContent: string,
   ) {
+    // ... (Existing AI logic)
     const hasKey =
       this.aiProvider === 'gemini' ? !!this.geminiApiKey : !!this.openaiApiKey
 
@@ -425,7 +441,6 @@ class MegaApiService {
       }
 
       // --- USER STORY IMPLEMENTATION ---
-      // Check if AI extracted data for appointment creation
       let finalBotText = aiResponse.text
       let finalAction = aiResponse.action
 
@@ -434,24 +449,23 @@ class MegaApiService {
           const { professional, appointment } = aiResponse.extracted_data
 
           // 1. Check & Update/Create Professional
-          const prof = db.upsertProfessional(professional)
+          const prof = await db.upsertProfessional(professional)
 
-          // 2. Create Appointment
-          const appt = db.createAppointment({
-            professionalId: prof.id,
-            profName: prof.name,
-            training: appointment.training,
-            date: appointment.date,
-            channel: 'WhatsApp',
-            status: 'Agendado',
-          })
+          if (prof) {
+            // 2. Create Appointment
+            const appt = await db.createAppointment({
+              professionalId: prof.id,
+              training_name: appointment.training,
+              date: appointment.date,
+              channel: 'WhatsApp',
+              status: 'Agendado',
+            })
 
-          // Send confirmation via WhatsApp logic is inherent here as this IS the chat bot response
-          // But we can also trigger the formal notification method if we wanted to enforce template
-          // For now, the bot response confirms it.
-
-          finalBotText += `\n\n✅ Agendamento #${appt.id} confirmado para ${appt.prof} no dia ${appt.date}!`
-          finalAction = 'Agendamento Criado no Banco de Dados'
+            if (appt) {
+              finalBotText += `\n\n✅ Agendamento #${appt.id.substring(0, 8)} confirmado para ${prof.name} no dia ${appt.date}!`
+              finalAction = 'Agendamento Criado no Banco de Dados'
+            }
+          }
         } catch (dbError) {
           console.error('Database operation failed', dbError)
           finalBotText += `\n\n⚠️ Falha ao salvar no banco de dados.`
@@ -482,6 +496,21 @@ class MegaApiService {
 
       this.messages[conversationId].push(botMessage)
       this.updateConversationPreview(conversationId, botMessage)
+
+      // Log bot response
+      const conv = this.conversations.find((c) => c.id === conversationId)
+      if (conv) {
+        notificationService
+          .logNotification({
+            recipientName: conv.profissionalNome || 'Desconhecido',
+            recipientContact: conv.telefone,
+            channel: 'whatsapp',
+            content: finalBotText,
+            status: 'sent',
+          })
+          .catch(console.error)
+      }
+
       this.notifyListeners()
     } catch (error) {
       console.error('Failed to get AI response:', error)

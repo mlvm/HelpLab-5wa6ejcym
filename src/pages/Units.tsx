@@ -19,6 +19,7 @@ import {
   Pencil,
   Ban,
   CheckCircle,
+  Loader2,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ import {
 
 export default function Units() {
   const [units, setUnits] = useState<Unit[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add')
@@ -43,20 +45,24 @@ export default function Units() {
 
   const { toast } = useToast()
 
-  useEffect(() => {
-    const fetchUnits = async () => {
-      try {
-        const data = await domainApi.getUnits()
-        setUnits(data)
-      } catch (error) {
-        console.error('Failed to fetch units', error)
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'Não foi possível carregar as unidades.',
-        })
-      }
+  const fetchUnits = async () => {
+    setLoading(true)
+    try {
+      const data = await domainApi.getUnits()
+      setUnits(data)
+    } catch (error) {
+      console.error('Failed to fetch units', error)
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível carregar as unidades.',
+      })
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchUnits()
   }, [toast])
 
@@ -72,39 +78,65 @@ export default function Units() {
     setDialogOpen(true)
   }
 
-  const handleStatusChange = (id: string, currentStatus: boolean) => {
+  const handleStatusChange = async (unit: Unit) => {
+    const newStatus = !unit.ativo
+    // Optimistic
     setUnits((prev) =>
       prev.map((u) =>
-        u.id_unidade === id ? { ...u, ativo: !currentStatus } : u,
+        u.id_unidade === unit.id_unidade ? { ...u, ativo: newStatus } : u,
       ),
     )
-    toast({
-      title: 'Status atualizado',
-      description: `Unidade ${!currentStatus ? 'ativada' : 'desativada'} com sucesso.`,
-    })
-  }
 
-  const handleFormSubmit = (data: UnitFormValues) => {
-    if (dialogMode === 'add') {
-      const newUnit: Unit = {
-        id_unidade: String(Date.now()),
-        ativo: true,
-        ...data,
-      }
-      setUnits((prev) => [...prev, newUnit])
+    try {
+      await domainApi.updateUnit(unit.id_unidade, { ativo: newStatus })
       toast({
-        title: 'Unidade criada',
-        description: `${data.nome} foi cadastrada com sucesso.`,
+        title: 'Status atualizado',
+        description: `Unidade ${newStatus ? 'ativada' : 'desativada'} com sucesso.`,
       })
-    } else if (dialogMode === 'edit' && selectedUnit) {
+    } catch (e) {
       setUnits((prev) =>
         prev.map((u) =>
-          u.id_unidade === selectedUnit.id_unidade ? { ...u, ...data } : u,
+          u.id_unidade === unit.id_unidade ? { ...u, ativo: unit.ativo } : u,
         ),
       )
       toast({
-        title: 'Unidade atualizada',
-        description: `Os dados de ${data.nome} foram atualizados.`,
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Falha ao atualizar.',
+      })
+    }
+  }
+
+  const handleFormSubmit = async (data: UnitFormValues) => {
+    try {
+      if (dialogMode === 'add') {
+        await domainApi.createUnit({
+          nome: data.nome,
+          tipo_unidade: data.tipo_unidade,
+          sigla: data.sigla,
+          endereco_municipio: data.endereco_municipio,
+          endereco_uf: data.endereco_uf,
+        })
+        toast({ title: 'Criada', description: 'Unidade criada com sucesso.' })
+      } else if (dialogMode === 'edit' && selectedUnit) {
+        await domainApi.updateUnit(selectedUnit.id_unidade, {
+          nome: data.nome,
+          tipo_unidade: data.tipo_unidade,
+          sigla: data.sigla,
+          endereco_municipio: data.endereco_municipio,
+          endereco_uf: data.endereco_uf,
+        })
+        toast({
+          title: 'Atualizada',
+          description: 'Unidade atualizada com sucesso.',
+        })
+      }
+      fetchUnits()
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Erro ao salvar.',
       })
     }
   }
@@ -156,7 +188,13 @@ export default function Units() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUnits.length > 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : filteredUnits.length > 0 ? (
                 filteredUnits.map((unit) => (
                   <TableRow key={unit.id_unidade}>
                     <TableCell>
@@ -213,9 +251,7 @@ export default function Units() {
                             className={
                               unit.ativo ? 'text-destructive' : 'text-primary'
                             }
-                            onClick={() =>
-                              handleStatusChange(unit.id_unidade, unit.ativo)
-                            }
+                            onClick={() => handleStatusChange(unit)}
                           >
                             {unit.ativo ? (
                               <>

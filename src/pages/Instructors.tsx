@@ -18,6 +18,7 @@ import {
   Pencil,
   Ban,
   CheckCircle,
+  Loader2,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ import {
 export default function Instructors() {
   const [instructors, setInstructors] = useState<Instructor[]>([])
   const [units, setUnits] = useState<Unit[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add')
@@ -44,24 +46,28 @@ export default function Instructors() {
 
   const { toast } = useToast()
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [instructorsData, unitsData] = await Promise.all([
-          domainApi.getInstructors(),
-          domainApi.getUnits(),
-        ])
-        setInstructors(instructorsData)
-        setUnits(unitsData)
-      } catch (error) {
-        console.error('Failed to fetch data', error)
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'Não foi possível carregar os instrutores.',
-        })
-      }
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const [instructorsData, unitsData] = await Promise.all([
+        domainApi.getInstructors(),
+        domainApi.getUnits(),
+      ])
+      setInstructors(instructorsData)
+      setUnits(unitsData)
+    } catch (error) {
+      console.error('Failed to fetch data', error)
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível carregar os instrutores.',
+      })
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchData()
   }, [toast])
 
@@ -77,41 +83,71 @@ export default function Instructors() {
     setDialogOpen(true)
   }
 
-  const handleStatusChange = (id: string, currentStatus: boolean) => {
+  const handleStatusChange = async (instructor: Instructor) => {
+    const newStatus = !instructor.ativo
     setInstructors((prev) =>
       prev.map((i) =>
-        i.id_instrutor === id ? { ...i, ativo: !currentStatus } : i,
+        i.id_instrutor === instructor.id_instrutor
+          ? { ...i, ativo: newStatus }
+          : i,
       ),
     )
-    toast({
-      title: 'Status atualizado',
-      description: `Instrutor ${!currentStatus ? 'ativado' : 'desativado'} com sucesso.`,
-    })
-  }
 
-  const handleFormSubmit = (data: InstructorFormValues) => {
-    if (dialogMode === 'add') {
-      const newInstructor: Instructor = {
-        id_instrutor: String(Date.now()),
-        ativo: true,
-        ...data,
-      }
-      setInstructors((prev) => [...prev, newInstructor])
-      toast({
-        title: 'Instrutor criado',
-        description: `${data.nome} foi cadastrado com sucesso.`,
+    try {
+      await domainApi.updateInstructor(instructor.id_instrutor, {
+        ativo: newStatus,
       })
-    } else if (dialogMode === 'edit' && selectedInstructor) {
+      toast({
+        title: 'Status atualizado',
+        description: `Instrutor ${newStatus ? 'ativado' : 'desativada'} com sucesso.`,
+      })
+    } catch (e) {
+      // Rollback
       setInstructors((prev) =>
         prev.map((i) =>
-          i.id_instrutor === selectedInstructor.id_instrutor
-            ? { ...i, ...data }
+          i.id_instrutor === instructor.id_instrutor
+            ? { ...i, ativo: instructor.ativo }
             : i,
         ),
       )
       toast({
-        title: 'Instrutor atualizado',
-        description: `Os dados de ${data.nome} foram atualizados.`,
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Falha ao atualizar.',
+      })
+    }
+  }
+
+  const handleFormSubmit = async (data: InstructorFormValues) => {
+    try {
+      if (dialogMode === 'add') {
+        await domainApi.createInstructor({
+          nome: data.nome,
+          cpf: data.cpf,
+          cargo: data.cargo,
+          area_atuacao: data.area_atuacao,
+          unidade_id: data.unidade_id,
+        })
+        toast({ title: 'Criado', description: 'Instrutor criado com sucesso.' })
+      } else if (dialogMode === 'edit' && selectedInstructor) {
+        await domainApi.updateInstructor(selectedInstructor.id_instrutor, {
+          nome: data.nome,
+          cpf: data.cpf,
+          cargo: data.cargo,
+          area_atuacao: data.area_atuacao,
+          unidade_id: data.unidade_id,
+        })
+        toast({
+          title: 'Atualizado',
+          description: 'Instrutor atualizado com sucesso.',
+        })
+      }
+      fetchData()
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Erro ao salvar.',
       })
     }
   }
@@ -169,7 +205,13 @@ export default function Instructors() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInstructors.length > 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : filteredInstructors.length > 0 ? (
                 filteredInstructors.map((instructor) => (
                   <TableRow key={instructor.id_instrutor}>
                     <TableCell className="font-medium">
@@ -177,7 +219,7 @@ export default function Instructors() {
                     </TableCell>
                     <TableCell>{instructor.cargo || '-'}</TableCell>
                     <TableCell>{instructor.area_atuacao || '-'}</TableCell>
-                    <TableCell>{getUnitName(instructor.unidade_id)}</TableCell>
+                    <TableCell>{getUnitName(instructor.unidade_id!)}</TableCell>
                     <TableCell>
                       <Badge
                         variant="default"
@@ -210,12 +252,7 @@ export default function Instructors() {
                                 ? 'text-destructive'
                                 : 'text-primary'
                             }
-                            onClick={() =>
-                              handleStatusChange(
-                                instructor.id_instrutor,
-                                instructor.ativo,
-                              )
-                            }
+                            onClick={() => handleStatusChange(instructor)}
                           >
                             {instructor.ativo ? (
                               <>
