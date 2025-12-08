@@ -40,6 +40,7 @@ export default function WhatsappPanel() {
   >(null)
   const [notes, setNotes] = useState('')
   const [isWhatsappConnected, setIsWhatsappConnected] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [missingConfig, setMissingConfig] = useState(false)
   const [conversations, setConversations] = useState<WhatsappConversation[]>([])
@@ -61,23 +62,27 @@ export default function WhatsappPanel() {
           (creds.aiProvider === 'chatgpt' && creds.openaiApiKey) ||
           (creds.aiProvider === 'gemini' && creds.geminiApiKey)
 
-        if (!creds.apiKey || !hasAiConfig) {
+        if (!hasAiConfig) {
           setMissingConfig(true)
           setIsLoading(false)
           return
         }
 
-        // Connect with stored credentials
-        const connected = await megaApi.connect()
-        if (connected) {
+        // Connect with stored credentials (Mega API credentials are now on server)
+        const { success, message } = await megaApi.connect()
+
+        if (success) {
           setIsWhatsappConnected(true)
+          setConnectionError(null)
           const convs = await megaApi.getConversations()
           setConversations(convs)
         } else {
+          setConnectionError(message)
           toast({
             variant: 'destructive',
             title: 'Falha na Conexão',
-            description: 'Verifique suas credenciais nas configurações.',
+            description:
+              message || 'Verifique suas credenciais nas configurações.',
           })
         }
       } catch (error) {
@@ -111,7 +116,7 @@ export default function WhatsappPanel() {
 
     return () => {
       unsubscribe()
-      megaApi.disconnect()
+      // megaApi.disconnect() is not available on instance, handled by state
     }
   }, [toast, selectedConversationId])
 
@@ -132,24 +137,29 @@ export default function WhatsappPanel() {
     setIsLoading(true)
     try {
       if (checked) {
-        const connected = await megaApi.connect()
-        if (connected) {
+        const { success, message } = await megaApi.connect()
+        if (success) {
           setIsWhatsappConnected(true)
+          setConnectionError(null)
           toast({
             title: 'Conectado',
             description: 'Serviço de Mensagens e IA ativos.',
           })
         } else {
+          setConnectionError(message)
           toast({
             variant: 'destructive',
             title: 'Erro',
             description:
+              message ||
               'Não foi possível conectar. Verifique as configurações.',
           })
         }
       } else {
-        await megaApi.disconnect()
+        // Disconnect logic is internal to service via connect toggle in real implementation,
+        // but here we just update state as connect/disconnect methods are simplified
         setIsWhatsappConnected(false)
+        setConnectionError(null)
         toast({
           title: 'Desconectado',
           description: 'Serviços pausados.',
@@ -198,7 +208,7 @@ export default function WhatsappPanel() {
           <h2 className="text-xl font-bold">Configuração Necessária</h2>
           <p className="text-muted-foreground text-sm">
             Para utilizar o painel inteligente, é necessário configurar as
-            credenciais da <strong>Mega API</strong> e do <strong>IA</strong>.
+            credenciais de <strong>IA (OpenAI ou Gemini)</strong>.
           </p>
           <Button asChild>
             <Link to="/settings">Configurar Integrações</Link>
@@ -220,32 +230,34 @@ export default function WhatsappPanel() {
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               )}
             </h1>
-            <div className="flex items-center gap-2 ml-4 bg-muted/30 px-3 py-1 rounded-full border">
-              <Switch
-                id="whatsapp-status"
-                checked={isWhatsappConnected}
-                onCheckedChange={handleConnectionToggle}
-                disabled={isLoading}
-              />
-              <Label
-                htmlFor="whatsapp-status"
-                className={cn(
-                  'text-sm font-medium transition-colors cursor-pointer flex items-center gap-2',
-                  isWhatsappConnected
-                    ? 'text-green-600'
-                    : 'text-muted-foreground',
-                )}
-              >
-                {isWhatsappConnected ? (
-                  <>
-                    <Wifi className="h-3 w-3" /> Online
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="h-3 w-3" /> Offline
-                  </>
-                )}
-              </Label>
+            <div className="flex flex-col ml-4">
+              <div className="flex items-center gap-2 bg-muted/30 px-3 py-1 rounded-full border">
+                <Switch
+                  id="whatsapp-status"
+                  checked={isWhatsappConnected}
+                  onCheckedChange={handleConnectionToggle}
+                  disabled={isLoading}
+                />
+                <Label
+                  htmlFor="whatsapp-status"
+                  className={cn(
+                    'text-sm font-medium transition-colors cursor-pointer flex items-center gap-2',
+                    isWhatsappConnected
+                      ? 'text-green-600'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {isWhatsappConnected ? (
+                    <>
+                      <Wifi className="h-3 w-3" /> Online
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="h-3 w-3" /> Offline
+                    </>
+                  )}
+                </Label>
+              </div>
             </div>
             {isWhatsappConnected && (
               <div
@@ -268,10 +280,18 @@ export default function WhatsappPanel() {
               </div>
             )}
           </div>
-          <p className="text-muted-foreground mt-1">
-            Monitoramento em tempo real com respostas geradas via Supabase Edge
-            Functions.
-          </p>
+          {connectionError && (
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-destructive animate-fade-in">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Status da Conexão: {connectionError}
+            </div>
+          )}
+          {!connectionError && (
+            <p className="text-muted-foreground mt-1 text-sm">
+              Monitoramento em tempo real com respostas geradas via Supabase
+              Edge Functions.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">

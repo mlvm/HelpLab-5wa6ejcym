@@ -136,6 +136,18 @@ class MegaApiService {
     }
   }
 
+  async connect(): Promise<{ success: boolean; message: string }> {
+    const result = await this.testConnection()
+    this.isConnected = result.success
+    if (this.isConnected) {
+      this.startWebhookSimulation()
+    } else {
+      this.stopWebhookSimulation()
+    }
+    this.notifyListeners()
+    return result
+  }
+
   async testConnection(): Promise<{ success: boolean; message: string }> {
     console.log('Testing connection via Edge Function...')
     try {
@@ -164,9 +176,6 @@ class MegaApiService {
       }
 
       if (data?.success) {
-        this.isConnected = true
-        this.startWebhookSimulation()
-        this.notifyListeners()
         return {
           success: true,
           message: data.message || 'Conexão estabelecida com sucesso!',
@@ -306,7 +315,7 @@ class MegaApiService {
 
     // Ensure connection is active (or try to connect)
     if (!this.isConnected) {
-      await this.testConnection()
+      await this.connect()
     }
 
     const conversationId = await this.findOrCreateConversation(

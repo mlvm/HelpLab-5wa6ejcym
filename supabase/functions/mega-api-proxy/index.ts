@@ -69,14 +69,26 @@ Deno.serve(async (req: Request) => {
 
         const data = await response.json().catch(() => ({}))
 
+        if (!response.ok) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              message: 'Falha ao contatar servidor proxy (Edge Function)', // Reusing message for consistency if upstream fails
+              data,
+              upstreamStatus: response.status,
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            },
+          )
+        }
+
         return new Response(
           JSON.stringify({
-            success: response.ok,
+            success: true,
             status: response.status,
             data,
-            message: response.ok
-              ? 'Conexão estabelecida com sucesso'
-              : 'Falha na conexão com API Mega',
+            message: 'Conexão estabelecida com sucesso',
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -87,7 +99,7 @@ Deno.serve(async (req: Request) => {
           JSON.stringify({
             success: false,
             error: e.message,
-            message: 'Erro de rede ao conectar com API Mega',
+            message: 'Falha ao contatar servidor proxy (Edge Function)', // Consistent error message
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
