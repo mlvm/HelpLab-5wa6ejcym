@@ -8,7 +8,6 @@ import {
 import { supabaseEdgeFunctions } from './supabase-edge-functions'
 import { db } from './database'
 import { notificationService } from './notification-service'
-import { supabase } from '@/lib/supabase/client'
 
 export type AIProvider = 'chatgpt' | 'gemini'
 
@@ -31,7 +30,6 @@ export interface TestResult {
 }
 
 class MegaApiService {
-  // Mega credentials are now managed via Supabase Secrets
   private openaiApiKey: string | null = null
   private geminiApiKey: string | null = null
   private aiProvider: AIProvider = 'chatgpt'
@@ -149,47 +147,12 @@ class MegaApiService {
   }
 
   async testConnection(): Promise<{ success: boolean; message: string }> {
-    console.log('Testing connection via Edge Function...')
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        'mega-api-proxy',
-        {
-          body: { action: 'test' },
-        },
-      )
-
-      if (error) {
-        console.error('Edge Function Error:', error)
-        return {
-          success: false,
-          message: 'Falha ao contatar servidor proxy (Edge Function)',
-        }
-      }
-
-      if (data?.configured === false) {
-        const missing =
-          data.missing?.join(', ') || 'MEGA_API_KEY ou MEGA_API_HOST'
-        return {
-          success: false,
-          message: `Credenciais ausentes no Supabase Secrets: ${missing}`,
-        }
-      }
-
-      if (data?.success) {
-        return {
-          success: true,
-          message: data.message || 'Conexão estabelecida com sucesso!',
-        }
-      } else {
-        return {
-          success: false,
-          message: data?.message || 'Erro ao conectar com API Mega',
-        }
-      }
-    } catch (e: any) {
-      console.error('Connection Test Exception:', e)
-      return { success: false, message: e.message || 'Erro desconhecido' }
-    }
+    console.log('Mega API integration removed. Using simulation mode.')
+    // Simulate success for UI continuity since proxy is removed
+    return Promise.resolve({
+      success: true,
+      message: 'Modo de simulação ativo (Mega API removida)',
+    })
   }
 
   async runComparativeTest(): Promise<TestResult[]> {
@@ -355,28 +318,6 @@ class MegaApiService {
     // Find conversation details for logging and sending
     const conv = this.conversations.find((c) => c.id === conversationId)
 
-    // Attempt real send via proxy if it is a BOT message or if we are connected
-    if (this.isConnected && sender === 'BOT') {
-      try {
-        const recipient = conv
-          ? this.sanitizePhone(conv.telefone)
-          : conversationId
-
-        await supabase.functions.invoke('mega-api-proxy', {
-          body: {
-            action: 'send',
-            payload: {
-              to: recipient,
-              content,
-            },
-          },
-        })
-      } catch (err) {
-        console.error('Failed to send message via Mega Proxy:', err)
-        // Fallback to local simulation for UI continuity
-      }
-    }
-
     // Log to Supabase Communications table (Async, don't block UI)
     if (sender === 'BOT' && conv) {
       notificationService
@@ -390,7 +331,7 @@ class MegaApiService {
         .catch(console.error)
     }
 
-    // Optimistic UI Update
+    // Optimistic UI Update / Simulation
     return new Promise((resolve) => {
       setTimeout(() => {
         const newMessage: WhatsappMessage = {
@@ -509,7 +450,7 @@ class MegaApiService {
       this.messages[conversationId].push(botMessage)
       this.updateConversationPreview(conversationId, botMessage)
 
-      // Send via Proxy (Best Effort)
+      // Send via Proxy (Best Effort) - Proxy removed, using simulation only
       this.sendMessage(conversationId, finalBotText, 'BOT').catch(console.error)
 
       this.notifyListeners()
