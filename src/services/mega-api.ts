@@ -168,7 +168,7 @@ class MegaApiService {
 
       if (data?.configured === false) {
         const missing =
-          data.missing?.join(', ') || 'MEGA_API_KEY ou MEGA_WEBHOOK_URL'
+          data.missing?.join(', ') || 'MEGA_API_KEY ou MEGA_API_HOST'
         return {
           success: false,
           message: `Credenciais ausentes no Supabase Secrets: ${missing}`,

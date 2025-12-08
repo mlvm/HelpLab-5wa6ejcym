@@ -39,18 +39,18 @@ Deno.serve(async (req: Request) => {
 
     // Retrieve Mega API Configuration
     const apiKey = Deno.env.get('MEGA_API_KEY')
-    const webhookUrl = Deno.env.get('MEGA_WEBHOOK_URL')
+    const apiHost = Deno.env.get('MEGA_API_HOST')
 
-    if (!apiKey || !webhookUrl) {
+    if (!apiKey || !apiHost) {
       return new Response(
         JSON.stringify({
           error: 'Missing configuration',
           message:
-            'MEGA_API_KEY and MEGA_WEBHOOK_URL are required in Supabase Secrets.',
+            'MEGA_API_KEY and MEGA_API_HOST are required in Supabase Secrets.',
           configured: false,
           missing: [
             !apiKey && 'MEGA_API_KEY',
-            !webhookUrl && 'MEGA_WEBHOOK_URL',
+            !apiHost && 'MEGA_API_HOST',
           ].filter(Boolean),
         }),
         {
@@ -62,8 +62,8 @@ Deno.serve(async (req: Request) => {
 
     const { action, payload } = await req.json()
 
-    // Normalize webhookUrl (remove trailing slash)
-    const baseUrl = webhookUrl.replace(/\/$/, '')
+    // Normalize apiHost (remove trailing slash)
+    const baseUrl = apiHost.replace(/\/$/, '')
 
     if (action === 'test') {
       const targetUrl = `${baseUrl}/v1/status`
