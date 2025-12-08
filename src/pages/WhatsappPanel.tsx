@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Search, Loader2, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
+import { Search, Loader2, Wifi, WifiOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   WhatsappConversation,
   WhatsappMessage,
-  Profissional,
   SEED_PROFESSIONALS,
 } from './WhatsappPanel.data'
 import { WhatsappConversationList } from '@/components/whatsapp/WhatsappConversationList'
@@ -23,6 +21,7 @@ export default function WhatsappPanel() {
   const [messages, setMessages] = useState<WhatsappMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [connectionStatus, setConnectionStatus] = useState(false)
+  const [notes, setNotes] = useState('')
 
   const { toast } = useToast()
 
@@ -36,7 +35,7 @@ export default function WhatsappPanel() {
         setConversations(convs)
 
         // Check connection status simply by having creds
-        const creds = megaApi.getCredentials()
+        const creds = await megaApi.fetchCredentials()
         if (creds.instanceKey && creds.token) {
           setConnectionStatus(true)
         }
@@ -136,8 +135,8 @@ export default function WhatsappPanel() {
           professional={currentProfessional}
           appointments={[]} // Empty for now or fetch real
           messageCount={messages.length}
-          notes=""
-          setNotes={() => {}}
+          notes={notes}
+          setNotes={setNotes}
         />
       </div>
     </div>

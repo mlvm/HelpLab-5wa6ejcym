@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react'
-import {
-  Save,
-  Loader2,
-  Key,
-  Server,
-  Shield,
-  Zap,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-} from 'lucide-react'
+import { Save, Loader2, Server, Zap, CheckCircle2, XCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +13,7 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { megaApi } from '@/services/mega-api'
+import { userSettingsService } from '@/services/user-settings'
 import { cn } from '@/lib/utils'
 
 export default function Settings() {
@@ -34,25 +25,63 @@ export default function Settings() {
   )
   const [megaMessage, setMegaMessage] = useState('')
   const [isChecking, setIsChecking] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
 
   useEffect(() => {
-    const creds = megaApi.getCredentials()
-    setInstanceKey(creds.instanceKey)
-    setToken(creds.token)
-  }, [])
+    const loadSettings = async () => {
+      setIsLoading(true)
+      try {
+        const creds = await megaApi.fetchCredentials()
+        setInstanceKey(creds.instanceKey)
+        setToken(creds.token)
+      } catch (e) {
+        console.error(e)
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao carregar configurações',
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadSettings()
+  }, [toast])
 
-  const handleSave = () => {
-    megaApi.updateCredentials(instanceKey, token)
-    toast({ title: 'Credenciais salvas localmente.' })
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      await userSettingsService.saveSettings({
+        mega_api_instance_key: instanceKey,
+        mega_api_token: token,
+      })
+      toast({ title: 'Credenciais salvas com sucesso.' })
+    } catch (e) {
+      console.error(e)
+      toast({ variant: 'destructive', title: 'Erro ao salvar credenciais' })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const checkConnection = async () => {
+    if (!instanceKey || !token) {
+      toast({
+        variant: 'destructive',
+        title: 'Preencha as credenciais primeiro.',
+      })
+      return
+    }
+
     setIsChecking(true)
     setMegaStatus('idle')
     try {
-      // Save first
-      megaApi.updateCredentials(instanceKey, token)
+      // Save first to satisfy requirements
+      await userSettingsService.saveSettings({
+        mega_api_instance_key: instanceKey,
+        mega_api_token: token,
+      })
 
       const result = await megaApi.connect({ instanceKey, token })
       setMegaStatus(result.success ? 'connected' : 'error')
@@ -73,6 +102,14 @@ export default function Settings() {
     } finally {
       setIsChecking(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -131,10 +168,18 @@ export default function Settings() {
           </div>
 
           <div className="flex items-center justify-between pt-4">
-            <Button variant="outline" onClick={handleSave}>
-              <Save className="mr-2 h-4 w-4" /> Salvar Credenciais
+            <Button variant="outline" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Salvar Credenciais
             </Button>
-            <Button onClick={checkConnection} disabled={isChecking}>
+            <Button
+              onClick={checkConnection}
+              disabled={isChecking || !instanceKey || !token}
+            >
               {isChecking ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { User, Calendar, ExternalLink, FileText, Server } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,7 +30,21 @@ export function WhatsappContextPanel({
   notes,
   setNotes,
 }: WhatsappContextPanelProps) {
-  const creds = megaApi.getCredentials()
+  const [aiConfig, setAiConfig] = useState<{
+    provider: string
+    model: string
+  }>({ provider: 'ChatGPT', model: 'gpt-4o-mini' })
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      const creds = await megaApi.fetchCredentials()
+      setAiConfig({
+        provider: creds.aiProvider || 'ChatGPT',
+        model: creds.aiModel || 'gpt-4o-mini',
+      })
+    }
+    fetchConfig()
+  }, [])
 
   return (
     <div className="md:col-span-3 flex flex-col gap-4 h-full border-l pl-4">
@@ -45,9 +60,7 @@ export function WhatsappContextPanel({
                 <span className="block font-medium text-foreground">
                   Provider
                 </span>
-                <span className="uppercase">
-                  {creds.aiProvider || 'ChatGPT'}
-                </span>
+                <span className="uppercase">{aiConfig.provider}</span>
               </div>
               <div>
                 <span className="block font-medium text-foreground">
@@ -63,8 +76,8 @@ export function WhatsappContextPanel({
               </div>
               <div>
                 <span className="block font-medium text-foreground">Model</span>
-                <span className="truncate" title={creds.aiModel}>
-                  {creds.aiModel || 'gpt-4o-mini'}
+                <span className="truncate" title={aiConfig.model}>
+                  {aiConfig.model}
                 </span>
               </div>
             </div>

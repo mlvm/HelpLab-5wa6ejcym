@@ -4,6 +4,7 @@ import {
   WhatsappMessage,
   ChatSender,
 } from '@/pages/WhatsappPanel.data'
+import { userSettingsService } from '@/services/user-settings'
 
 export interface MegaApiConfig {
   instanceKey: string
@@ -28,14 +29,13 @@ class MegaApiService {
       return []
     }
 
-    // Map DB to UI types
     return data.map((c: any) => ({
       id: c.id,
       telefone: c.contact_phone_number,
       profissionalNome: c.contact_name || c.contact_phone_number,
       ultimaMensagemPreview: c.last_message_preview || '...',
       ultimaMensagemEm: c.last_message_at,
-      status: c.status === 'open' ? 'SEM_AGENDAMENTO' : 'OUTRO', // Simplified mapping
+      status: c.status === 'open' ? 'SEM_AGENDAMENTO' : 'OUTRO',
       origem: 'WHATSAPP',
       unreadCount: c.unread_count,
     }))
@@ -55,11 +55,9 @@ class MegaApiService {
 
     return data.map((m: any) => {
       let sender: ChatSender = 'BOT'
-      if (m.sender_type === 'contact')
-        sender = 'USUARIO' // Contact UI
-      else if (m.sender_type === 'user')
-        sender = 'AGENT' // Human Agent UI (e.g. system admin)
-      else if (m.sender_type === 'ai') sender = 'BOT' // AI Bot UI
+      if (m.sender_type === 'contact') sender = 'USUARIO'
+      else if (m.sender_type === 'user') sender = 'AGENT'
+      else if (m.sender_type === 'ai') sender = 'BOT'
 
       return {
         id: m.id,
@@ -77,10 +75,22 @@ class MegaApiService {
   async connect(
     config?: MegaApiConfig,
   ): Promise<{ success: boolean; message: string }> {
+    // If config is not provided, fetch from DB
+    let effectiveConfig = config
+    if (!effectiveConfig) {
+      const settings = await userSettingsService.getSettings()
+      if (settings?.mega_api_instance_key && settings?.mega_api_token) {
+        effectiveConfig = {
+          instanceKey: settings.mega_api_instance_key,
+          token: settings.mega_api_token,
+        }
+      }
+    }
+
     const { data, error } = await supabase.functions.invoke('mega-api-proxy', {
       body: {
         action: 'test_connection',
-        ...config,
+        ...effectiveConfig,
       },
     })
 
@@ -93,7 +103,7 @@ class MegaApiService {
 
     // Register Webhook (Best Effort)
     const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mega-api-proxy`
-    this.configureWebhook(webhookUrl, config)
+    this.configureWebhook(webhookUrl, effectiveConfig)
 
     return { success: true, message: 'Conectado' }
   }
@@ -111,14 +121,13 @@ class MegaApiService {
   async sendMessage(
     conversationId: string,
     content: string,
-    sender: ChatSender = 'BOT', // Sender in UI terms
+    sender: ChatSender = 'BOT',
     forcePhone?: string,
   ): Promise<void> {
     let phone = forcePhone
     let contactName = ''
 
     if (!phone && conversationId) {
-      // Resolve phone from conversation ID
       const { data } = await supabase
         .from('whatsapp_conversations')
         .select('contact_phone_number, contact_name')
@@ -130,13 +139,11 @@ class MegaApiService {
 
     if (!phone) throw new Error('Phone number not found')
 
-    // Determine sender_type for DB
     let dbSenderType = 'ai'
     if (sender === 'AGENT') dbSenderType = 'user'
     if (sender === 'USUARIO') dbSenderType = 'contact'
 
     if (dbSenderType === 'contact') {
-      // Simulate incoming message
       const { data, error } = await supabase.functions.invoke(
         'mega-api-proxy',
         {
@@ -151,7 +158,14 @@ class MegaApiService {
       if (error || !data?.success)
         throw new Error(data?.message || error?.message)
     } else {
-      // Send outgoing message
+      // Fetch credentials from DB
+      const settings = await userSettingsService.getSettings()
+      const instanceKey = settings?.mega_api_instance_key
+      const token = settings?.mega_api_token
+
+      if (!instanceKey || !token)
+        throw new Error('Mega API credentials not configured')
+
       const { data, error } = await supabase.functions.invoke(
         'mega-api-proxy',
         {
@@ -160,8 +174,8 @@ class MegaApiService {
             phone: phone,
             message: content,
             senderType: dbSenderType,
-            instanceKey: localStorage.getItem('mega_instance_key'),
-            token: localStorage.getItem('mega_token'),
+            instanceKey: instanceKey,
+            token: token,
           },
         },
       )
@@ -169,12 +183,10 @@ class MegaApiService {
         throw new Error(data?.message || error?.message)
     }
 
-    // Notify listeners
     this.notifyListeners()
   }
 
   async findOrCreateConversation(phone: string, name: string): Promise<string> {
-    // Check local DB
     const { data: existing } = await supabase
       .from('whatsapp_conversations')
       .select('id')
@@ -183,7 +195,6 @@ class MegaApiService {
 
     if (existing) return existing.id
 
-    // Create
     const { data: newConv, error } = await supabase
       .from('whatsapp_conversations')
       .insert({
@@ -224,18 +235,14 @@ class MegaApiService {
   }
 
   // Configuration Helper
-  getCredentials() {
+  async fetchCredentials() {
+    const settings = await userSettingsService.getSettings()
     return {
-      instanceKey: localStorage.getItem('mega_instance_key') || '',
-      token: localStorage.getItem('mega_token') || '',
+      instanceKey: settings?.mega_api_instance_key || '',
+      token: settings?.mega_api_token || '',
       aiProvider: localStorage.getItem('ai_provider') as 'chatgpt' | 'gemini',
       aiModel: localStorage.getItem('ai_model') || 'gpt-4o-mini',
     }
-  }
-
-  updateCredentials(instanceKey: string, token: string) {
-    localStorage.setItem('mega_instance_key', instanceKey)
-    localStorage.setItem('mega_token', token)
   }
 }
 
