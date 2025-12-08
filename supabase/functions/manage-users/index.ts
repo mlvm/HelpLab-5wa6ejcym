@@ -44,12 +44,7 @@ Deno.serve(async (req: Request) => {
       .single()
 
     if (!profile || profile.role !== 'admin') {
-      // NOTE: For development/demo purposes, we might allow the first user or specific logic.
-      // But strictly following requirements, we return 403.
-      // However, since we just added the column, no one is admin yet.
-      // To allow the first usage, you might want to manually set your user as admin in DB.
-
-      // For now, strict check:
+      // For production, strictly enforce:
       return new Response(JSON.stringify({ error: 'Forbidden: Admins only' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -107,10 +102,18 @@ Deno.serve(async (req: Request) => {
             email,
             password,
             email_confirm: true,
+            user_metadata: { name, cpf },
           })
         if (createError) throw createError
 
         if (!authData.user) throw new Error('Failed to create auth user')
+
+        // If created as inactive, ban immediately
+        if (status === 'inactive') {
+          await supabaseAdmin.auth.admin.updateUserById(authData.user.id, {
+            ban_duration: '876000h',
+          })
+        }
 
         // 2. Create Profile
         const { error: profileError } = await supabaseAdmin
@@ -142,11 +145,19 @@ Deno.serve(async (req: Request) => {
       if (action === 'update') {
         const { id, email, name, cpf, phone, unit, status, role } = payload
 
-        // 1. Update Auth Email if changed
+        // 1. Update Auth Email or Status if changed
         if (email) {
           const { error: authError } =
             await supabaseAdmin.auth.admin.updateUserById(id, { email })
           if (authError) throw authError
+        }
+
+        // Handle Activation/Deactivation at Auth Level
+        if (status) {
+          const banDuration = status === 'active' ? '0s' : '876000h' // 0s to unban, long duration to ban
+          await supabaseAdmin.auth.admin.updateUserById(id, {
+            ban_duration: banDuration,
+          })
         }
 
         // 2. Update Profile
@@ -183,6 +194,11 @@ Deno.serve(async (req: Request) => {
 
       if (action === 'deactivate') {
         const { id } = payload
+        // Ban User
+        await supabaseAdmin.auth.admin.updateUserById(id, {
+          ban_duration: '876000h', // ~100 years
+        })
+
         const { error } = await supabaseAdmin
           .from('profiles')
           .update({ status: 'inactive' })

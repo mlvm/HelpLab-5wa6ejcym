@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -18,16 +18,9 @@ import {
   Trash2,
   Key,
   Loader2,
-  MoreHorizontal,
   Shield,
-  ShieldAlert,
+  Users as UsersIcon,
 } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -166,8 +159,7 @@ export default function Users() {
             Gerenciamento de Usuários
           </h1>
           <p className="text-muted-foreground">
-            Gerencie todos os usuários do sistema, incluindo suas informações
-            pessoais e status.
+            Controle de acesso e manutenção de contas do sistema.
           </p>
         </div>
         <Button onClick={handleAddClick}>
@@ -177,14 +169,19 @@ export default function Users() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, email ou CPF..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <UsersIcon className="h-5 w-5" /> Lista de Usuários
+            </CardTitle>
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, email ou CPF..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -202,10 +199,10 @@ export default function Users() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    <div className="flex justify-center items-center">
-                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      Carregando...
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <div className="flex flex-col justify-center items-center text-muted-foreground">
+                      <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                      Carregando usuários...
                     </div>
                   </TableCell>
                 </TableRow>
@@ -215,7 +212,10 @@ export default function Users() {
                     <TableCell className="font-medium flex items-center gap-2">
                       {user.name}
                       {user.role === 'admin' && (
-                        <Shield className="h-3 w-3 text-primary" />
+                        <Shield
+                          className="h-3.5 w-3.5 text-primary"
+                          title="Administrador"
+                        />
                       )}
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -243,21 +243,21 @@ export default function Users() {
                           title="Editar"
                           onClick={() => handleEditClick(user)}
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          title="Alterar Senha"
+                          title="Trocar Senha"
                           onClick={() => handleChangePasswordClick(user)}
                         >
-                          <Key className="h-4 w-4" />
+                          <Key className="h-4 w-4 text-muted-foreground hover:text-primary" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          title="Desativar"
-                          className="text-destructive hover:text-destructive"
+                          title="Inativar"
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                           onClick={() => handleDeleteClick(user)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -299,11 +299,11 @@ export default function Users() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Desativar Usuário</AlertDialogTitle>
+            <AlertDialogTitle>Inativar Usuário</AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem certeza que deseja desativar o usuário{' '}
-              <strong>{selectedUser?.name}</strong>? Ele perderá acesso ao
-              sistema imediatamente.
+              Você tem certeza que deseja inativar o usuário{' '}
+              <strong>{selectedUser?.name}</strong>? Ele perderá acesso imediato
+              ao sistema e não poderá mais realizar login.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -312,7 +312,7 @@ export default function Users() {
               onClick={handleConfirmDelete}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Desativar
+              Sim, Inativar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
