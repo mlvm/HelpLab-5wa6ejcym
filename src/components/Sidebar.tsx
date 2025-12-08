@@ -70,7 +70,7 @@ export function Sidebar({
       href: '/settings',
       subItems: [
         { label: 'Integrações & IA', href: '/settings' },
-        { label: 'Contas', href: '/settings/account' },
+        { label: 'Usuário', href: '/settings/account' },
         { label: 'Status', href: '/settings/status' },
         { label: 'Auditoria', href: '/settings/audit' },
       ],
