@@ -1,18 +1,41 @@
-import { useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
+import { Loader2 } from 'lucide-react'
 
 export default function Layout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, loading } = useAuth()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user && location.pathname !== '/login') {
+      navigate('/login')
+    }
+  }, [user, loading, navigate, location.pathname])
 
   // Hide layout for login page
   if (location.pathname === '/login') {
     return <Outlet />
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect
   }
 
   return (

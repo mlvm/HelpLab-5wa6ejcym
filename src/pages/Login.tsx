@@ -10,30 +10,104 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useNavigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle, ArrowRight } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase/client'
 
 export default function Login() {
   const [step, setStep] = useState<'credentials' | 'mfa'>('credentials')
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
+  const [mfaChallengeId, setMfaChallengeId] = useState<string | null>(null)
+
+  const { signIn } = useAuth()
   const navigate = useNavigate()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setStep('mfa')
-    }, 1000)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error: signInError } = await signIn(email, password)
+
+      if (signInError) {
+        throw signInError
+      }
+
+      // Check for MFA
+      const { data: factors, error: factorsError } =
+        await supabase.auth.mfa.listFactors()
+
+      if (factorsError) {
+        throw factorsError
+      }
+
+      const verifiedFactors = factors.totp.filter(
+        (factor) => factor.status === 'verified',
+      )
+
+      if (verifiedFactors.length > 0) {
+        const factor = verifiedFactors[0]
+        setMfaFactorId(factor.id)
+
+        const { data: challenge, error: challengeError } =
+          await supabase.auth.mfa.challenge({ factorId: factor.id })
+
+        if (challengeError) {
+          throw challengeError
+        }
+
+        setMfaChallengeId(challenge.id)
+        setStep('mfa')
+      } else {
+        // No MFA required or enrolled
+        navigate('/')
+      }
+    } catch (err: any) {
+      console.error('Login error:', err)
+      setError(err.message || 'Erro ao realizar login.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleMfa = (e: React.FormEvent) => {
+  const handleMfaVerify = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
+    if (!mfaFactorId || !mfaChallengeId || !otpCode) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: mfaFactorId,
+        challengeId: mfaChallengeId,
+        code: otpCode,
+      })
+
+      if (verifyError) {
+        throw verifyError
+      }
+
       navigate('/')
-    }, 1000)
+    } catch (err: any) {
+      console.error('MFA error:', err)
+      setError(err.message || 'Código de verificação inválido.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -51,6 +125,14 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4 text-left">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Erro</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           {step === 'credentials' ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
@@ -59,8 +141,11 @@ export default function Login() {
                   id="email"
                   type="email"
                   placeholder="nome@exemplo.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   className="transition-all focus-visible:ring-primary"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -70,10 +155,17 @@ export default function Login() {
                     Esqueceu a senha?
                   </a>
                 </div>
-                <Input id="password" type="password" required />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   'Entrar'
@@ -81,37 +173,58 @@ export default function Login() {
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleMfa} className="space-y-4 animate-fade-in">
-              <div className="space-y-2 text-center">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Digite o código de 6 dígitos enviado para seu dispositivo.
+            <form
+              onSubmit={handleMfaVerify}
+              className="space-y-6 animate-fade-in"
+            >
+              <div className="space-y-2 text-center flex flex-col items-center">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Digite o código de 6 dígitos do seu autenticador.
                 </p>
                 <Label htmlFor="otp" className="sr-only">
                   Código OTP
                 </Label>
-                <Input
-                  id="otp"
-                  type="text"
-                  placeholder="000000"
-                  className="text-center text-2xl tracking-widest"
+                <InputOTP
                   maxLength={6}
-                  required
-                />
+                  value={otpCode}
+                  onChange={setOtpCode}
+                  disabled={isLoading}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  'Verificar e Entrar'
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full"
-                onClick={() => setStep('credentials')}
-              >
-                Voltar
-              </Button>
+              <div className="space-y-2">
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      Verificar e Entrar
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    setStep('credentials')
+                    setError(null)
+                    setPassword('')
+                  }}
+                  type="button"
+                  disabled={isLoading}
+                >
+                  Voltar
+                </Button>
+              </div>
             </form>
           )}
         </CardContent>

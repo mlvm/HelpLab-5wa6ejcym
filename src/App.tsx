@@ -24,52 +24,58 @@ import ClassStatusSettings from './pages/ClassStatusSettings'
 import ProfessionalReport from './pages/ProfessionalReport'
 import Users from './pages/admin/Users'
 import { ClassStatusProvider } from '@/contexts/ClassStatusContext'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 const App = () => (
   <BrowserRouter
     future={{ v7_startTransition: false, v7_relativeSplatPath: false }}
   >
     <TooltipProvider>
-      <ClassStatusProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/login" element={<Login />} />
+      <AuthProvider>
+        <ClassStatusProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/login" element={<Login />} />
 
-          <Route element={<Layout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/whatsapp-panel" element={<WhatsappPanel />} />
-            <Route path="/professionals" element={<Professionals />} />
-            <Route path="/instructors" element={<Instructors />} />
-            <Route path="/units" element={<Units />} />
-            <Route path="/trainings" element={<Trainings />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/class/:id" element={<ClassDetails />} />
-            <Route path="/appointments" element={<Appointments />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route
-              path="/reports/professional-history"
-              element={<ProfessionalReport />}
-            />
-            <Route path="/communications" element={<Communications />} />
+            <Route element={<Layout />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/whatsapp-panel" element={<WhatsappPanel />} />
+              <Route path="/professionals" element={<Professionals />} />
+              <Route path="/instructors" element={<Instructors />} />
+              <Route path="/units" element={<Units />} />
+              <Route path="/trainings" element={<Trainings />} />
+              <Route path="/schedule" element={<Schedule />} />
+              <Route path="/class/:id" element={<ClassDetails />} />
+              <Route path="/appointments" element={<Appointments />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route
+                path="/reports/professional-history"
+                element={<ProfessionalReport />}
+              />
+              <Route path="/communications" element={<Communications />} />
 
-            {/* Admin Sub-routes */}
-            <Route path="/admin/usuarios" element={<Users />} />
+              {/* Admin Sub-routes */}
+              <Route path="/admin/usuarios" element={<Users />} />
 
-            {/* Settings Sub-routes */}
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/settings/account" element={<Account />} />
-            <Route path="/settings/status" element={<ClassStatusSettings />} />
-            <Route path="/settings/audit" element={<Audit />} />
-            <Route
-              path="/settings/my-history"
-              element={<ProfessionalHistory />}
-            />
-          </Route>
+              {/* Settings Sub-routes */}
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/settings/account" element={<Account />} />
+              <Route
+                path="/settings/status"
+                element={<ClassStatusSettings />}
+              />
+              <Route path="/settings/audit" element={<Audit />} />
+              <Route
+                path="/settings/my-history"
+                element={<ProfessionalHistory />}
+              />
+            </Route>
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </ClassStatusProvider>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ClassStatusProvider>
+      </AuthProvider>
     </TooltipProvider>
   </BrowserRouter>
 )
