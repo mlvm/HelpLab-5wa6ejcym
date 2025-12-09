@@ -14,6 +14,8 @@ export const userSettingsService = {
     const {
       data: { user },
     } = await supabase.auth.getUser()
+
+    // If no user (guest mode), return null or default settings
     if (!user) return null
 
     const { data, error } = await supabase
@@ -38,7 +40,12 @@ export const userSettingsService = {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) throw new Error('User not authenticated')
+
+    // If no user (guest mode), allow simulation or return silently
+    if (!user) {
+      console.log('Settings save simulated for guest user:', settings)
+      return
+    }
 
     const existing = await this.getSettings()
 

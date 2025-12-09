@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
@@ -11,17 +11,12 @@ export default function Layout() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
-  const { user, loading } = useAuth()
+  const { loading } = useAuth()
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!loading && !user && location.pathname !== '/login') {
-      navigate('/login')
-    }
-  }, [user, loading, navigate, location.pathname])
+  // Note: Authentication requirement disabled as per user story.
+  // The application is now directly accessible without login.
 
-  // Hide layout for login page
+  // Hide layout for login page if it's rendered within Layout (though typically it's outside)
   if (location.pathname === '/login') {
     return <Outlet />
   }
@@ -32,10 +27,6 @@ export default function Layout() {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
-  }
-
-  if (!user) {
-    return null // Will redirect
   }
 
   return (

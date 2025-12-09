@@ -23,8 +23,11 @@ export const auditService = {
       data: { user },
     } = await supabase.auth.getUser()
 
+    // Use a placeholder if no user is authenticated (guest mode)
+    const userId = user?.id || 'guest-user-id'
+
     const { error } = await supabase.from('audit_logs').insert({
-      user_id: user?.id,
+      user_id: userId,
       action,
       entity,
       details,

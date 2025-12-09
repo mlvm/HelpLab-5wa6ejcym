@@ -17,7 +17,21 @@ export const profileService = {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return null
+
+    // If no authenticated user, return a mock profile
+    if (!user) {
+      return {
+        id: 'guest-user-id',
+        name: 'Visitante',
+        cpf: '000.000.000-00',
+        phone: '(00) 00000-0000',
+        unit: 'Visitante',
+        avatar_url: null,
+        status: 'active',
+        role: 'user',
+        email: 'visitante@helplab.com.br',
+      }
+    }
 
     const { data, error } = await supabase
       .from('profiles')
@@ -52,7 +66,12 @@ export const profileService = {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) throw new Error('Usuário não autenticado')
+
+    // If guest, simulate success
+    if (!user) {
+      console.log('Profile update simulated for guest user:', profile)
+      return
+    }
 
     const profileData = {
       id: user.id,
@@ -69,6 +88,16 @@ export const profileService = {
   },
 
   async updatePassword(password: string) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    // If guest, simulate success
+    if (!user) {
+      console.log('Password update simulated for guest user')
+      return
+    }
+
     const { error } = await supabase.auth.updateUser({ password })
     if (error) throw error
   },
@@ -77,7 +106,12 @@ export const profileService = {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) throw new Error('Usuário não autenticado')
+
+    // If guest, just redirect to login
+    if (!user) {
+      window.location.href = '/login'
+      return
+    }
 
     const { error } = await supabase
       .from('profiles')

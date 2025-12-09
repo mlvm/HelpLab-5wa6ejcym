@@ -24,6 +24,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const GUEST_USER: User = {
+  id: 'guest-user-id',
+  app_metadata: { provider: 'email' },
+  user_metadata: { name: 'Visitante' },
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  email: 'visitante@helplab.com.br',
+  phone: '',
+  role: 'authenticated',
+}
+
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (context === undefined) {
@@ -42,16 +54,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      // It is FORBIDDEN to use async / await inside this callback
       setSession(session)
-      setUser(session?.user ?? null)
+      // If no session, fall back to guest user to allow navigation
+      setUser(session?.user ?? GUEST_USER)
       setLoading(false)
     })
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      setUser(session?.user ?? null)
+      // If no session, fall back to guest user to allow navigation
+      setUser(session?.user ?? GUEST_USER)
       setLoading(false)
     })
 
@@ -68,6 +81,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
+    // After sign out, we still want the guest user to be present for navigation
+    setUser(GUEST_USER)
     return { error }
   }
 
