@@ -1,41 +1,46 @@
 -- Seed Units
-INSERT INTO units (name, type, sigla, address_city, address_state, active)
-VALUES
+INSERT INTO public.units (name, type, sigla, address_city, address_state, active)
+SELECT * FROM (VALUES 
     ('Hospital Santa Casa', 'Hospital', 'HSC', 'São Paulo', 'SP', true),
     ('UBS Vila Mariana', 'UBS', 'UBSVM', 'São Paulo', 'SP', true),
     ('Clínica Bem Estar', 'Clínica', 'CBE', 'Campinas', 'SP', true),
     ('Hospital Regional', 'Hospital', 'HR', 'Santos', 'SP', true),
-    ('Centro de Treinamento', 'Outros', 'CT', 'São Paulo', 'SP', true);
+    ('Centro de Treinamento', 'Outros', 'CT', 'São Paulo', 'SP', true)
+) AS v(name, type, sigla, address_city, address_state, active)
+WHERE NOT EXISTS (SELECT 1 FROM public.units WHERE sigla = v.sigla);
 
 -- Seed Instructors
-INSERT INTO instructors (name, cpf, unit_id, role, area, active)
+INSERT INTO public.instructors (name, cpf, unit_id, role, area, active)
 SELECT
     'Instrutor ' || n,
     lpad(n::text, 11, '0'),
-    (SELECT id FROM units ORDER BY random() LIMIT 1),
+    (SELECT id FROM public.units ORDER BY random() LIMIT 1),
     CASE WHEN n % 2 = 0 THEN 'Instrutor Senior' ELSE 'Instrutor Junior' END,
     CASE WHEN n % 3 = 0 THEN 'Enfermagem' WHEN n % 3 = 1 THEN 'Primeiros Socorros' ELSE 'Administrativo' END,
     true
-FROM generate_series(1, 5) n;
+FROM generate_series(1, 5) n
+WHERE NOT EXISTS (SELECT 1 FROM public.instructors WHERE cpf = lpad(n::text, 11, '0'));
 
 -- Seed Trainings
-INSERT INTO trainings (name, hours, capacity, status, instructor_id, description)
+INSERT INTO public.trainings (name, hours, capacity, status, instructor_id, description, material_url)
 SELECT
-    'Treinamento de ' || area,
+    'Treinamento de ' || i.area,
     (floor(random() * 8 + 1)::int)::text || 'h',
     20,
     'Ativo',
-    id,
-    'Treinamento prático e teórico focado em ' || area
-FROM instructors;
+    i.id,
+    'Treinamento prático e teórico focado em ' || i.area,
+    'https://example.com/material-treinamento-' || i.area || '.pdf'
+FROM public.instructors i
+WHERE NOT EXISTS (SELECT 1 FROM public.trainings WHERE name = 'Treinamento de ' || i.area AND instructor_id = i.id);
 
 -- Seed Professionals
-INSERT INTO professionals (name, cpf, whatsapp, unit_id, role, status)
+INSERT INTO public.professionals (name, cpf, whatsapp, unit_id, role, status)
 SELECT
     'Profissional ' || n,
     lpad((n + 1000)::text, 11, '0'),
     '55119' || lpad(n::text, 8, '0'),
-    (SELECT id FROM units ORDER BY random() LIMIT 1),
+    (SELECT id FROM public.units ORDER BY random() LIMIT 1),
     CASE WHEN n % 4 = 0 THEN 'Médico' WHEN n % 4 = 1 THEN 'Enfermeiro' WHEN n % 4 = 2 THEN 'Técnico' ELSE 'Recepcionista' END,
     'Ativo'
 FROM generate_series(1, 15) n
@@ -43,7 +48,7 @@ ON CONFLICT (cpf) DO NOTHING;
 
 -- Seed Appointments
 -- Generate 30 random appointments in the next/past 15 days
-INSERT INTO appointments (professional_id, training_id, training_name, date, channel, status)
+INSERT INTO public.appointments (professional_id, training_id, training_name, date, channel, status)
 SELECT
     p.id,
     t.id,
@@ -52,34 +57,35 @@ SELECT
     CASE WHEN random() > 0.5 THEN 'WhatsApp' ELSE 'Portal' END,
     CASE WHEN random() > 0.8 THEN 'Cancelado' WHEN random() > 0.5 THEN 'Concluído' ELSE 'Agendado' END
 FROM generate_series(1, 30) i
-CROSS JOIN LATERAL (SELECT id FROM professionals ORDER BY random() LIMIT 1) p
-CROSS JOIN LATERAL (SELECT id, name FROM trainings ORDER BY random() LIMIT 1) t;
+CROSS JOIN LATERAL (SELECT id FROM public.professionals ORDER BY random() LIMIT 1) p
+CROSS JOIN LATERAL (SELECT id, name FROM public.trainings ORDER BY random() LIMIT 1) t;
 
 -- Seed Appointment History
--- Add history entry for each appointment created
-INSERT INTO appointment_history (appointment_id, status, updated_by, created_at)
+-- Add history entry for each appointment created that doesn't have history
+INSERT INTO public.appointment_history (appointment_id, status, updated_by, created_at)
 SELECT
     id,
     status,
     'Sistema (Seed)',
     created_at
-FROM appointments
-WHERE id NOT IN (SELECT appointment_id FROM appointment_history);
+FROM public.appointments a
+WHERE NOT EXISTS (SELECT 1 FROM public.appointment_history h WHERE h.appointment_id = a.id);
 
 -- Seed Whatsapp Conversations
-INSERT INTO whatsapp_conversations (contact_phone_number, contact_name, status, unread_count, last_message_at)
+INSERT INTO public.whatsapp_conversations (contact_phone_number, contact_name, status, unread_count, last_message_at, preview)
 SELECT
     '551198' || lpad(n::text, 7, '0'),
     'Contato WhatsApp ' || n,
     CASE WHEN n % 3 = 0 THEN 'closed' ELSE 'open' END,
     floor(random() * 5)::int,
-    NOW() - ((floor(random() * 1000)) || ' minutes')::interval
+    NOW() - ((floor(random() * 1000)) || ' minutes')::interval,
+    'Esta é uma mensagem de prévia do contato ' || n
 FROM generate_series(1, 10) n
 ON CONFLICT (contact_phone_number) DO NOTHING;
 
 -- Seed Whatsapp Messages
 -- Add random messages to conversations
-INSERT INTO whatsapp_messages (conversation_id, sender_type, message_type, content, status, timestamp)
+INSERT INTO public.whatsapp_messages (conversation_id, sender_type, message_type, content, status, timestamp)
 SELECT
     c.id,
     CASE WHEN m % 2 = 0 THEN 'contact' ELSE 'user' END,
@@ -90,8 +96,13 @@ SELECT
     END,
     'sent',
     c.last_message_at - ((5 - m) || ' minutes')::interval
-FROM whatsapp_conversations c
-CROSS JOIN generate_series(1, 4) m;
+FROM public.whatsapp_conversations c
+CROSS JOIN generate_series(1, 4) m
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.whatsapp_messages msg
+    WHERE msg.conversation_id = c.id
+      AND msg.timestamp = (c.last_message_at - ((5 - m) || ' minutes')::interval)
+);
 
 -- Seed Profiles and User Settings
 -- Iterates over existing Auth Users to create profiles and settings if missing
