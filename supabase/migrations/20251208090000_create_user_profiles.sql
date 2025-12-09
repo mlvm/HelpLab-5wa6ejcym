@@ -1,42 +1,42 @@
-DO $$ BEGIN
-    CREATE TYPE user_status AS ENUM ('active', 'inactive');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
-CREATE TABLE IF NOT EXISTS profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  cpf TEXT UNIQUE NOT NULL,
-  phone TEXT,
-  unit TEXT,
-  avatar_url TEXT,
-  status user_status NOT NULL DEFAULT 'active',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+create table if not exists public.profiles (
+  id uuid references auth.users(id) on delete cascade not null primary key,
+  updated_at timestamp with time zone,
+  name text,
+  email text,
+  cpf text,
+  unit text,
+  status text default 'active',
+  avatar_url text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+alter table public.profiles enable row level security;
 
-DO $$ BEGIN
-    CREATE POLICY "Users can view own profile" ON profiles
-        FOR SELECT USING (auth.uid() = id);
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+create policy "Public profiles are viewable by everyone."
+  on profiles for select
+  using ( true );
 
-DO $$ BEGIN
-    CREATE POLICY "Users can insert own profile" ON profiles
-        FOR INSERT WITH CHECK (auth.uid() = id);
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+create policy "Users can insert their own profile."
+  on profiles for insert
+  with check ( auth.uid() = id );
 
-DO $$ BEGIN
-    CREATE POLICY "Users can update own profile" ON profiles
-        FOR UPDATE USING (auth.uid() = id);
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+create policy "Users can update own profile."
+  on profiles for update
+  using ( auth.uid() = id );
 
-CREATE INDEX IF NOT EXISTS profiles_id_idx ON profiles(id);
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, name, email)
+  values (new.id, new.raw_user_meta_data ->> 'full_name', new.email);
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();

@@ -1,27 +1,12 @@
-CREATE TABLE IF NOT EXISTS user_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  mega_api_instance_key TEXT,
-  mega_api_token TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  CONSTRAINT user_settings_user_id_key UNIQUE (user_id)
+create table if not exists public.user_settings (
+    user_id uuid references auth.users(id) on delete cascade primary key,
+    mega_api_instance_key text,
+    mega_api_token text,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
-ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view their own settings"
-  ON user_settings
-  FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own settings"
-  ON user_settings
-  FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own settings"
-  ON user_settings
-  FOR UPDATE
-  USING (auth.uid() = user_id);
-
+alter table public.user_settings enable row level security;
+create policy "Users can view own settings" on public.user_settings for select to authenticated using (auth.uid() = user_id);
+create policy "Users can update own settings" on public.user_settings for update to authenticated using (auth.uid() = user_id);
+create policy "Users can insert own settings" on public.user_settings for insert to authenticated with check (auth.uid() = user_id);

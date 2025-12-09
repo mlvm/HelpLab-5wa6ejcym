@@ -1,32 +1,27 @@
-CREATE TABLE IF NOT EXISTS whatsapp_conversations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contact_phone_number TEXT NOT NULL UNIQUE,
-    contact_name TEXT,
-    last_message_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-    status TEXT DEFAULT 'open',
-    ai_enabled BOOLEAN DEFAULT FALSE,
-    unread_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+create table if not exists public.whatsapp_conversations (
+    id uuid default gen_random_uuid() primary key,
+    contact_phone_number text unique not null,
+    contact_name text,
+    status text default 'open',
+    unread_count integer default 0,
+    last_message_at timestamp with time zone default timezone('utc'::text, now()),
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
-CREATE TABLE IF NOT EXISTS whatsapp_messages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    conversation_id UUID REFERENCES whatsapp_conversations(id) ON DELETE CASCADE,
-    sender_type TEXT NOT NULL, -- 'user' (system/agent), 'contact' (whatsapp user), 'ai' (bot)
-    message_type TEXT DEFAULT 'text',
-    content TEXT,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    status TEXT DEFAULT 'sent', -- 'sent', 'delivered', 'read', 'failed', 'received'
-    mega_message_id TEXT UNIQUE,
-    metadata JSONB
+alter table public.whatsapp_conversations enable row level security;
+create policy "Authenticated users can view conversations" on public.whatsapp_conversations for select to authenticated using (true);
+
+create table if not exists public.whatsapp_messages (
+    id uuid default gen_random_uuid() primary key,
+    conversation_id uuid references public.whatsapp_conversations(id) on delete cascade,
+    sender_type text not null,
+    message_type text default 'text' not null,
+    content text,
+    media_url text,
+    status text default 'sent',
+    timestamp timestamp with time zone default timezone('utc'::text, now()),
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
-ALTER TABLE whatsapp_conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE whatsapp_messages ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-    CREATE POLICY "Enable all for authenticated" ON whatsapp_conversations FOR ALL USING (auth.role() = 'authenticated');
-    CREATE POLICY "Enable all for authenticated" ON whatsapp_messages FOR ALL USING (auth.role() = 'authenticated');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+alter table public.whatsapp_messages enable row level security;
+create policy "Authenticated users can view messages" on public.whatsapp_messages for select to authenticated using (true);
